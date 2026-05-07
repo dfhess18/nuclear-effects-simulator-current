@@ -204,15 +204,15 @@ export default function Map({
       </MapContainer>
 
       {/* Tile selector */}
-      <div className="absolute top-2 right-2 z-[1000] flex rounded-md overflow-hidden border border-slate-300 dark:border-slate-600 shadow-sm">
+      <div className="absolute top-2 right-2 z-[1000] flex rounded-md overflow-hidden border border-slate-300 dark:border-zinc-600 shadow-sm">
         {(["osm", "light", "dark"] as TileType[]).map((t) => (
           <button
             key={t}
             onClick={() => setTileType(t)}
             className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
               tileType === t
-                ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900"
-                : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                ? "bg-slate-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
+                : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-slate-800"
             }`}
             aria-pressed={tileType === t}
           >

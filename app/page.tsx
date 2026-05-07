@@ -2,18 +2,18 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-8">
+    <main className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-8">
       <div className="max-w-xl w-full">
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
+        <h1 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-3">
           Nuclear Effects Simulator
         </h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+        <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6 leading-relaxed">
           An interactive tool for modeling the immediate physical effects of nuclear
           detonations in urban environments. Visualizes blast overpressure, thermal
           radiation, and prompt ionizing radiation rings alongside rough casualty
           estimates.
         </p>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+        <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6 leading-relaxed">
           Physics are based on Glasstone &amp; Dolan,{" "}
           <em>The Effects of Nuclear Weapons</em> (1977). Casualty methodology follows
           the zone-based model described in MIT course materials. This tool is intended
@@ -23,18 +23,18 @@ export default function HomePage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center mb-10">
           <Link
             href="/boston"
-            className="inline-block rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 text-sm font-medium hover:bg-slate-700 dark:hover:bg-slate-300 transition-colors"
+            className="inline-block rounded-lg bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 text-sm font-medium hover:bg-slate-700 dark:hover:bg-slate-300 transition-colors"
           >
             Open Simulator
           </Link>
-          <span className="text-xs text-slate-500 dark:text-slate-500">
+          <span className="text-xs text-slate-500 dark:text-zinc-500">
             Boston, MA — more cities coming in future releases
           </span>
         </div>
 
-        <div className="border-t border-slate-200 dark:border-slate-800 pt-6 grid sm:grid-cols-3 gap-4 text-xs text-slate-500 dark:text-slate-500">
+        <div className="border-t border-slate-200 dark:border-zinc-800 pt-6 grid sm:grid-cols-3 gap-4 text-xs text-slate-500 dark:text-zinc-500">
           <div>
-            <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">Effects modeled</p>
+            <p className="font-medium text-slate-700 dark:text-zinc-300 mb-1">Effects modeled</p>
             <ul className="space-y-0.5">
               <li>Blast overpressure (5 rings)</li>
               <li>Thermal radiation (3 burn degrees)</li>
@@ -43,7 +43,7 @@ export default function HomePage() {
             </ul>
           </div>
           <div>
-            <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">Weapon yields</p>
+            <p className="font-medium text-slate-700 dark:text-zinc-300 mb-1">Weapon yields</p>
             <ul className="space-y-0.5">
               <li>Hiroshima (15 kt)</li>
               <li>Nagasaki (21 kt)</li>
@@ -53,7 +53,7 @@ export default function HomePage() {
             </ul>
           </div>
           <div>
-            <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">Not modeled</p>
+            <p className="font-medium text-slate-700 dark:text-zinc-300 mb-1">Not modeled</p>
             <ul className="space-y-0.5">
               <li>Fallout / downwind contamination</li>
               <li>EMP effects</li>
@@ -63,7 +63,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-slate-600 mt-8">
+        <p className="text-[11px] text-slate-400 dark:text-zinc-600 mt-8">
           Casualty estimates are rough approximations using simplified population density
           models. Actual casualties depend on time of day, sheltering, building density,
           evacuation, and emergency response.

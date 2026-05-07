@@ -24,8 +24,8 @@ export function ResultsPanel({
 }: ResultsPanelProps) {
   if (!groundZeroPlaced) {
     return (
-      <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-6 py-4 text-center">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+      <div className="border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 px-6 py-4 text-center">
+        <p className="text-sm text-slate-500 dark:text-zinc-400">
           Click the Boston marker on the map to get started, or click anywhere to place ground zero.
         </p>
       </div>
@@ -35,13 +35,13 @@ export function ResultsPanel({
   if (!casualties) return null;
 
   return (
-    <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+    <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
       <div className="px-6 py-4">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-zinc-200 uppercase tracking-wider">
             Estimated effects
           </h2>
-          <Badge variant="outline" className="text-[10px] font-normal text-slate-500 dark:text-slate-400">
+          <Badge variant="outline" className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">
             {yieldKt >= 1000 ? `${yieldKt / 1000} Mt` : `${yieldKt} kt`}
           </Badge>
         </div>
@@ -50,7 +50,7 @@ export function ResultsPanel({
           <StatCard
             label="Fatalities"
             value={fmt(casualties.fatalities)}
-            accent="text-slate-900 dark:text-slate-100"
+            accent="text-slate-900 dark:text-zinc-100"
           />
           <StatCard
             label="Blast injuries"
@@ -65,17 +65,17 @@ export function ResultsPanel({
           <StatCard
             label="Affected area"
             value={`${casualties.affectedAreaKm2.toLocaleString()} km²`}
-            accent="text-slate-600 dark:text-slate-400"
+            accent="text-slate-600 dark:text-zinc-400"
           />
         </div>
 
         <Separator className="mb-3" />
 
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
           {casualties.narrative}
         </p>
 
-        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-2">
           All figures are rough estimates using a zone-based population density model.
           Actual casualties would depend on time of day, sheltering, building density,
           evacuation, and emergency response.
@@ -95,9 +95,9 @@ function StatCard({
   accent: string;
 }) {
   return (
-    <Card className="border-slate-200 dark:border-slate-700">
+    <Card className="border-slate-200 dark:border-zinc-700">
       <CardHeader className="pb-1 pt-3 px-3">
-        <CardTitle className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+        <CardTitle className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 uppercase tracking-wide">
           {label}
         </CardTitle>
       </CardHeader>

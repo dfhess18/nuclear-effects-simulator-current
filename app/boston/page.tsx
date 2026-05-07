@@ -20,8 +20,8 @@ import type { CityMarker } from "@/components/map/types";
 const Map = dynamic(() => import("@/components/map/Map"), {
   ssr: false,
   loading: () => (
-    <div className="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-800">
-      <p className="text-slate-500 dark:text-slate-400 text-sm">Loading map…</p>
+    <div className="flex-1 flex items-center justify-center bg-slate-100 dark:bg-zinc-800">
+      <p className="text-slate-500 dark:text-zinc-400 text-sm">Loading map…</p>
     </div>
   ),
 });
@@ -85,20 +85,20 @@ export default function BostonPage() {
   }, [activeYieldKt, burstType, hobM, groundZero, timeOfDay, weather]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-slate-950">
+    <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-zinc-950">
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-3 flex items-center justify-between">
+      <header className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-3 flex items-center justify-between">
         <div>
-          <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          <h1 className="text-base font-semibold text-slate-900 dark:text-zinc-100">
             Nuclear Effects Simulator
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Boston, MA — educational tool</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">Boston, MA — educational tool</p>
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <a
             href="/"
-            className="text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+            className="text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-slate-200 transition-colors"
           >
             Home
           </a>

@@ -29,13 +29,13 @@ export function Legend({ rings }: LegendProps) {
   if (categories.length === 0) return null;
 
   return (
-    <div className="absolute bottom-8 right-2 z-[1000] bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 min-w-[220px] max-w-[260px] text-xs">
-      <p className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-[11px] uppercase tracking-wide">
+    <div className="absolute bottom-8 right-2 z-[1000] bg-white/95 dark:bg-zinc-900/95 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 min-w-[220px] max-w-[260px] text-xs">
+      <p className="font-semibold text-slate-800 dark:text-zinc-200 mb-2 text-[11px] uppercase tracking-wide">
         Effects legend
       </p>
       {categories.map((cat) => (
         <div key={cat} className="mb-2">
-          <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">
+          <p className="font-medium text-slate-600 dark:text-zinc-400 mb-1">
             {CATEGORY_LABELS[cat]}
           </p>
           {byCategory[cat]
@@ -50,7 +50,7 @@ export function Legend({ rings }: LegendProps) {
                   style={{ backgroundColor: ring.color }}
                   aria-hidden="true"
                 />
-                <span className="text-slate-700 dark:text-slate-300">{ring.thresholdLabel}</span>
+                <span className="text-slate-700 dark:text-zinc-300">{ring.thresholdLabel}</span>
               </div>
             ))}
         </div>
