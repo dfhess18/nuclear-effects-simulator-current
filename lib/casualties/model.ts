@@ -135,16 +135,22 @@ export function computeCasualties(
     totalAffectedAreaKm2 += Math.PI * (outerR / 1000) ** 2;
   }
 
-  // Thermal burn injuries (outdoor, line-of-sight, 1st and 2nd degree zones
-  // that extend beyond the 5 psi lethal blast ring)
+  // Thermal burn injuries (outdoor, line-of-sight, zones beyond the 5 psi blast ring).
+  // Rings are processed from smallest radius outward so each annulus is counted once:
+  //   innerR = max(blast5psiRadius, previous thermal ring outer edge)
+  //   outerR = this ring's radius
+  // This prevents the 2nd-degree zone from being recounted inside the 1st-degree pass.
   const blast5psiRadius = sorted.find((r) => r.psi === 5)?.radiusM ?? 0;
   let burnInjuries = 0;
 
-  for (const tRing of thermalRings) {
-    if (tRing.radiusM <= blast5psiRadius) continue; // already counted in blast
-    const innerR = blast5psiRadius;
+  const sortedThermal = [...thermalRings].sort((a, b) => a.radiusM - b.radiusM);
+  let thermalInnerR = blast5psiRadius;
+
+  for (const tRing of sortedThermal) {
+    if (tRing.radiusM <= thermalInnerR) continue;
+    const innerR = thermalInnerR;
     const outerR = tRing.radiusM;
-    if (outerR <= innerR) continue;
+    thermalInnerR = outerR; // advance inner boundary for next ring
 
     const population = annulusPopulation(
       groundZero.lat,

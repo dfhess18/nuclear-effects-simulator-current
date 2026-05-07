@@ -153,7 +153,11 @@ export default function Map({
   onCitySelect,
 }: MapProps) {
   const iconsFixed = useRef(false);
-  const [tileType, setTileType] = useState<TileType>("osm");
+  const [tileType, setTileType] = useState<TileType>("light");
+  // Local drag position: updated continuously during drag so rings follow the marker live.
+  // The Marker's own `position` prop stays as `groundZero` (unchanged during drag) so
+  // Leaflet's drag handler isn't interrupted by React re-renders.
+  const [dragGZ, setDragGZ] = useState<{ lat: number; lng: number } | null>(null);
 
   if (!iconsFixed.current && typeof window !== "undefined") {
     fixLeafletIcons();
@@ -190,14 +194,19 @@ export default function Map({
               icon={groundZeroIcon}
               draggable={true}
               eventHandlers={{
+                drag(e) {
+                  const { lat, lng } = (e.target as L.Marker).getLatLng();
+                  setDragGZ({ lat, lng });
+                },
                 dragend(e) {
                   const { lat, lng } = (e.target as L.Marker).getLatLng();
+                  setDragGZ(null);
                   if (onGroundZeroDrag) onGroundZeroDrag(lat, lng);
                 },
               }}
             />
             {rings.length > 0 && (
-              <EffectRings rings={rings} groundZero={groundZero} />
+              <EffectRings rings={rings} groundZero={dragGZ ?? groundZero} />
             )}
           </>
         )}
