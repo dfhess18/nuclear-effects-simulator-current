@@ -91,7 +91,7 @@ export function InputsPanel({
                 }}
               >
                 <SelectTrigger className="text-sm" aria-label="Weapon preset">
-                  <SelectValue />
+                  <SelectValue>{preset.label}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {PRESETS.map((p) => (
@@ -151,7 +151,7 @@ export function InputsPanel({
                 }}
               >
                 <SelectTrigger className="text-sm" aria-label="Burst type">
-                  <SelectValue />
+                  <SelectValue>{burstType === "airburst" ? "Airburst" : "Surface burst"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="airburst" className="text-sm">
@@ -235,7 +235,9 @@ export function InputsPanel({
                 onValueChange={(v) => onWeatherChange(v as Weather)}
               >
                 <SelectTrigger className="text-sm" aria-label="Weather visibility">
-                  <SelectValue />
+                  <SelectValue>
+                    {weather === "clear" ? "Clear (transmission 90%)" : weather === "hazy" ? "Hazy (transmission 60%)" : "Overcast (transmission 30%)"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="clear" className="text-sm">
