@@ -1,145 +1,111 @@
 /**
- * Map.tsx — the ONLY file that imports from react-leaflet.
+ * Map.tsx — Mapbox GL JS implementation.
  *
- * Swap this file for a Mapbox GL JS implementation when the token arrives.
+ * This is the ONLY file that imports from mapbox-gl.
  * The prop interface (MapProps) is defined in ./types.ts and must not change.
- * All consumers receive EffectRing[] from lib/physics/types — no Leaflet types leak out.
+ * All consumers receive EffectRing[] from lib/physics/types — no Mapbox types leak out.
+ *
+ * Ring rendering is handled imperatively via GeoJSON sources/layers.
+ * EffectRings.tsx (react-leaflet) is no longer used.
  */
 "use client";
 
-import { useRef, useState } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Tooltip,
-  useMapEvents,
-  useMap,
-} from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import type { MapProps, CityMarker } from "./types";
-import { EffectRings } from "./EffectRings";
+import { useRef, useEffect, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import type { MapProps } from "./types";
+import type { EffectRing } from "../../lib/physics/types";
 import { Legend } from "./Legend";
 
-type TileType = "osm" | "light" | "dark";
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
-const TILES: Record<TileType, { url: string; attribution: string; label: string }> = {
-  osm: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    label: "Standard",
-  },
-  light: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    label: "Light",
-  },
-  dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    label: "Dark",
-  },
+type StyleId = "streets" | "light" | "dark";
+
+const STYLES: Record<StyleId, { url: string; label: string }> = {
+  streets: { url: "mapbox://styles/mapbox/streets-v12", label: "Standard" },
+  light:   { url: "mapbox://styles/mapbox/light-v11",   label: "Light" },
+  dark:    { url: "mapbox://styles/mapbox/dark-v11",    label: "Dark" },
 };
 
-// Fix default marker icon paths broken by webpack bundling
-function fixLeafletIcons() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconUrl: "/leaflet/marker-icon.png",
-    iconRetinaUrl: "/leaflet/marker-icon-2x.png",
-    shadowUrl: "/leaflet/marker-shadow.png",
-  });
+const SOURCE_ID = "effect-rings";
+const FILL_LAYER = "effect-rings-fill";
+const STROKE_LAYER = "effect-rings-stroke";
+
+/** Approximate a circle as a GeoJSON polygon (64 vertices). */
+function circleCoords(
+  lat: number,
+  lng: number,
+  radiusM: number,
+  steps = 64
+): [number, number][] {
+  const latRad = (lat * Math.PI) / 180;
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * 2 * Math.PI;
+    const dlat = (radiusM * Math.cos(angle)) / 111320;
+    const dlng = (radiusM * Math.sin(angle)) / (111320 * Math.cos(latRad));
+    coords.push([lng + dlng, lat + dlat]);
+  }
+  return coords;
 }
 
-const groundZeroIcon =
-  typeof window !== "undefined"
-    ? L.divIcon({
-        className: "",
-        html: `<div style="
-          width:16px;height:16px;
-          border-radius:50%;
-          background:#ef4444;
-          border:2.5px solid #fff;
-          box-shadow:0 0 0 1.5px #ef4444,0 2px 6px rgba(0,0,0,0.4);
-          cursor:grab;
-        "></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      })
-    : undefined;
-
-const cityIcon =
-  typeof window !== "undefined"
-    ? L.divIcon({
-        className: "",
-        html: `<div style="
-          width:14px;height:14px;
-          border-radius:50%;
-          background:#2563eb;
-          border:2.5px solid #fff;
-          box-shadow:0 0 0 1.5px #2563eb,0 2px 6px rgba(0,0,0,0.4);
-          cursor:pointer;
-        "></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-      })
-    : undefined;
-
-function ClickHandler({
-  onMapClick,
-}: {
-  onMapClick: (lat: number, lng: number) => void;
-}) {
-  useMapEvents({
-    click(e) {
-      onMapClick(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
+function ringsToGeoJSON(
+  rings: EffectRing[],
+  gz: { lat: number; lng: number }
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    // largest first so fills layer correctly (each ring is a full disk, not annulus)
+    features: [...rings]
+      .sort((a, b) => b.radiusM - a.radiusM)
+      .map((ring) => ({
+        type: "Feature" as const,
+        properties: {
+          color: ring.color,
+          fillOpacity: ring.fillOpacity,
+          thresholdLabel: ring.thresholdLabel,
+          physicalDescription: ring.physicalDescription,
+          radiusM: ring.radiusM,
+          casualtyRateInner: ring.casualtyRateInner,
+        },
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [circleCoords(gz.lat, gz.lng, ring.radiusM)],
+        },
+      })),
+  };
 }
 
-function CityMarkerLayer({
-  markers,
-  onCitySelect,
-}: {
-  markers: CityMarker[];
-  onCitySelect?: (lat: number, lng: number) => void;
-}) {
-  const map = useMap();
-
-  if (!cityIcon) return null;
-
-  return (
-    <>
-      {markers.map((m) => (
-        <Marker
-          key={m.id}
-          position={[m.lat, m.lng]}
-          icon={cityIcon}
-          eventHandlers={{
-            click() {
-              if (onCitySelect) onCitySelect(m.lat, m.lng);
-              map.flyTo([m.lat, m.lng], 12, { duration: 1.2 });
-            },
-          }}
-        >
-          <Tooltip
-            permanent
-            direction="top"
-            offset={[0, -10]}
-            className="text-xs font-medium"
-          >
-            {m.label}
-          </Tooltip>
-        </Marker>
-      ))}
-    </>
-  );
+function setupRingLayers(map: mapboxgl.Map) {
+  if (!map.getSource(SOURCE_ID)) {
+    map.addSource(SOURCE_ID, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+  }
+  if (!map.getLayer(FILL_LAYER)) {
+    map.addLayer({
+      id: FILL_LAYER,
+      type: "fill",
+      source: SOURCE_ID,
+      paint: {
+        "fill-color": ["get", "color"],
+        "fill-opacity": ["get", "fillOpacity"],
+      },
+    });
+  }
+  if (!map.getLayer(STROKE_LAYER)) {
+    map.addLayer({
+      id: STROKE_LAYER,
+      type: "line",
+      source: SOURCE_ID,
+      paint: {
+        "line-color": ["get", "color"],
+        "line-width": 1.5,
+        "line-opacity": 0.8,
+      },
+    });
+  }
 }
 
 export default function Map({
@@ -152,80 +118,248 @@ export default function Map({
   onGroundZeroDrag,
   onCitySelect,
 }: MapProps) {
-  const iconsFixed = useRef(false);
-  const [tileType, setTileType] = useState<TileType>("light");
-  // Local drag position: updated continuously during drag so rings follow the marker live.
-  // The Marker's own `position` prop stays as `groundZero` (unchanged during drag) so
-  // Leaflet's drag handler isn't interrupted by React re-renders.
-  const [dragGZ, setDragGZ] = useState<{ lat: number; lng: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const gzMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const cityMarkerRefs = useRef<mapboxgl.Marker[]>([]);
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const [styleId, setStyleId] = useState<StyleId>("light");
 
-  if (!iconsFixed.current && typeof window !== "undefined") {
-    fixLeafletIcons();
-    iconsFixed.current = true;
-  }
+  // Stable refs so event handlers in imperative callbacks never go stale
+  const onMapClickRef = useRef(onMapClick);
+  const onGroundZeroDragRef = useRef(onGroundZeroDrag);
+  const onCitySelectRef = useRef(onCitySelect);
+  const ringsRef = useRef(rings);
+  const groundZeroRef = useRef(groundZero);
 
-  const tile = TILES[tileType];
+  useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
+  useEffect(() => { onGroundZeroDragRef.current = onGroundZeroDrag; }, [onGroundZeroDrag]);
+  useEffect(() => { onCitySelectRef.current = onCitySelect; }, [onCitySelect]);
+  useEffect(() => { ringsRef.current = rings; }, [rings]);
+  useEffect(() => { groundZeroRef.current = groundZero; }, [groundZero]);
+
+  // ── Map initialisation (runs once on mount) ──────────────────────────────
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      style: STYLES.light.url,
+      center: [center.lng, center.lat],
+      zoom: initialZoom,
+    });
+
+    map.addControl(new mapboxgl.NavigationControl(), "top-left");
+
+    // Re-add ring sources/layers every time a new style finishes loading
+    // (covers initial load AND subsequent setStyle() calls)
+    map.on("style.load", () => {
+      setupRingLayers(map);
+      const gz = groundZeroRef.current;
+      const r = ringsRef.current;
+      if (gz && r.length > 0) {
+        (map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource).setData(
+          ringsToGeoJSON(r, gz)
+        );
+      }
+    });
+
+    // Map click → place / move ground zero
+    map.on("click", (e) => {
+      onMapClickRef.current(e.lngLat.lat, e.lngLat.lng);
+    });
+
+    // Ring hover tooltip
+    map.on("mousemove", FILL_LAYER, (e) => {
+      map.getCanvas().style.cursor = "crosshair";
+      const feat = e.features?.[0];
+      if (!feat?.properties) return;
+      const p = feat.properties as {
+        thresholdLabel: string;
+        physicalDescription: string;
+        radiusM: number;
+        casualtyRateInner: number;
+      };
+      const html = `
+        <div style="font-size:12px;max-width:210px;font-family:system-ui,sans-serif;line-height:1.4">
+          <p style="font-weight:600;margin:0 0 3px">${p.thresholdLabel}</p>
+          <p style="color:#555;margin:0 0 3px">${p.physicalDescription}</p>
+          <p style="color:#777;margin:0 0 3px">
+            Radius: ${(p.radiusM / 1000).toFixed(2)} km /
+            ${(p.radiusM / 1609.34).toFixed(2)} mi
+          </p>
+          ${
+            p.casualtyRateInner > 0
+              ? `<p style="color:#777;margin:0">Est. fatality rate inside: ${Math.round(p.casualtyRateInner * 100)}%</p>`
+              : ""
+          }
+        </div>`;
+      popupRef.current?.remove();
+      popupRef.current = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 8,
+      })
+        .setLngLat(e.lngLat)
+        .setHTML(html)
+        .addTo(map);
+    });
+
+    map.on("mouseleave", FILL_LAYER, () => {
+      map.getCanvas().style.cursor = "";
+      popupRef.current?.remove();
+      popupRef.current = null;
+    });
+
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Style switching ───────────────────────────────────────────────────────
+  useEffect(() => {
+    mapRef.current?.setStyle(STYLES[styleId].url);
+    // style.load handler (set up in init effect) re-adds layers and restores data
+  }, [styleId]);
+
+  // ── Ring data update ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
+    if (!source) return;
+    if (groundZero && rings.length > 0) {
+      source.setData(ringsToGeoJSON(rings, groundZero));
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [rings, groundZero]);
+
+  // ── Ground zero marker ────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!groundZero) {
+      gzMarkerRef.current?.remove();
+      gzMarkerRef.current = null;
+      return;
+    }
+
+    if (!gzMarkerRef.current) {
+      const el = document.createElement("div");
+      Object.assign(el.style, {
+        width: "16px",
+        height: "16px",
+        borderRadius: "50%",
+        background: "#ef4444",
+        border: "2.5px solid #fff",
+        boxShadow: "0 0 0 1.5px #ef4444,0 2px 6px rgba(0,0,0,0.4)",
+        cursor: "grab",
+      });
+
+      const marker = new mapboxgl.Marker({ element: el, draggable: true })
+        .setLngLat([groundZero.lng, groundZero.lat])
+        .addTo(map);
+
+      // Update ring GeoJSON live during drag (no React re-render needed)
+      marker.on("drag", () => {
+        const { lng, lat } = marker.getLngLat();
+        const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
+        if (source && ringsRef.current.length > 0) {
+          source.setData(ringsToGeoJSON(ringsRef.current, { lat, lng }));
+        }
+      });
+
+      marker.on("dragend", () => {
+        const { lng, lat } = marker.getLngLat();
+        onGroundZeroDragRef.current?.(lat, lng);
+      });
+
+      gzMarkerRef.current = marker;
+    } else {
+      gzMarkerRef.current.setLngLat([groundZero.lng, groundZero.lat]);
+    }
+  }, [groundZero]);
+
+  // ── City markers ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    cityMarkerRefs.current.forEach((m) => m.remove());
+    cityMarkerRefs.current = [];
+
+    (cityMarkers ?? []).forEach((city) => {
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "position:relative;width:14px;height:14px;";
+
+      const dot = document.createElement("div");
+      Object.assign(dot.style, {
+        width: "14px",
+        height: "14px",
+        borderRadius: "50%",
+        background: "#2563eb",
+        border: "2.5px solid #fff",
+        boxShadow: "0 0 0 1.5px #2563eb,0 2px 6px rgba(0,0,0,0.4)",
+        cursor: "pointer",
+      });
+
+      const label = document.createElement("div");
+      label.textContent = city.label;
+      label.style.cssText = [
+        "position:absolute",
+        "bottom:18px",
+        "left:50%",
+        "transform:translateX(-50%)",
+        "background:white",
+        "color:#1e293b",
+        "padding:2px 6px",
+        "border-radius:4px",
+        "font-size:11px",
+        "font-weight:500",
+        "white-space:nowrap",
+        "box-shadow:0 1px 4px rgba(0,0,0,0.2)",
+        "pointer-events:none",
+      ].join(";");
+
+      wrapper.appendChild(dot);
+      wrapper.appendChild(label);
+
+      wrapper.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onCitySelectRef.current?.(city.lat, city.lng);
+        map.flyTo({ center: [city.lng, city.lat], zoom: 12, duration: 1200 });
+      });
+
+      const marker = new mapboxgl.Marker({ element: wrapper })
+        .setLngLat([city.lng, city.lat])
+        .addTo(map);
+
+      cityMarkerRefs.current.push(marker);
+    });
+  }, [cityMarkers]);
 
   return (
     <div className="relative w-full h-full">
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={initialZoom}
-        style={{ width: "100%", height: "100%" }}
-        zoomControl={true}
-      >
-        <TileLayer
-          key={tileType}
-          url={tile.url}
-          attribution={tile.attribution}
-          maxZoom={19}
-        />
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
 
-        <ClickHandler onMapClick={onMapClick} />
-
-        {cityMarkers && cityMarkers.length > 0 && (
-          <CityMarkerLayer markers={cityMarkers} onCitySelect={onCitySelect} />
-        )}
-
-        {groundZero && groundZeroIcon && (
-          <>
-            <Marker
-              position={[groundZero.lat, groundZero.lng]}
-              icon={groundZeroIcon}
-              draggable={true}
-              eventHandlers={{
-                drag(e) {
-                  const { lat, lng } = (e.target as L.Marker).getLatLng();
-                  setDragGZ({ lat, lng });
-                },
-                dragend(e) {
-                  const { lat, lng } = (e.target as L.Marker).getLatLng();
-                  setDragGZ(null);
-                  if (onGroundZeroDrag) onGroundZeroDrag(lat, lng);
-                },
-              }}
-            />
-            {rings.length > 0 && (
-              <EffectRings rings={rings} groundZero={dragGZ ?? groundZero} />
-            )}
-          </>
-        )}
-      </MapContainer>
-
-      {/* Tile selector */}
-      <div className="absolute top-2 right-2 z-[1000] flex rounded-md overflow-hidden border border-slate-300 dark:border-zinc-600 shadow-sm">
-        {(["osm", "light", "dark"] as TileType[]).map((t) => (
+      {/* Style switcher */}
+      <div className="absolute top-2 right-2 z-10 flex rounded-md overflow-hidden border border-slate-300 dark:border-zinc-600 shadow-sm">
+        {(Object.keys(STYLES) as StyleId[]).map((s) => (
           <button
-            key={t}
-            onClick={() => setTileType(t)}
+            key={s}
+            onClick={() => setStyleId(s)}
             className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
-              tileType === t
+              styleId === s
                 ? "bg-slate-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
                 : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-slate-800"
             }`}
-            aria-pressed={tileType === t}
+            aria-pressed={styleId === s}
           >
-            {TILES[t].label}
+            {STYLES[s].label}
           </button>
         ))}
       </div>
