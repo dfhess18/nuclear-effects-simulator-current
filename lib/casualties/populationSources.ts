@@ -46,3 +46,38 @@ class BostonZoneModel implements PopulationSource {
 }
 
 export const bostonZoneModel: PopulationSource = new BostonZoneModel();
+
+// ── Census block group model (v2) ─────────────────────────────────────────────
+// Populated by running: node scripts/fetch-census.mjs
+// Falls back to bostonZoneModel when data is empty (before first run).
+
+interface BlockGroupRecord {
+  lat: number;
+  lng: number;
+  density: number; // people/km²
+}
+
+export class CensusBlockGroupModel implements PopulationSource {
+  private readonly data: BlockGroupRecord[];
+
+  constructor(blockGroups: BlockGroupRecord[]) {
+    this.data = blockGroups;
+  }
+
+  getDensityAt(lat: number, lng: number): number {
+    // Nearest-centroid lookup — O(n) over ~500 Suffolk County block groups.
+    // Fast enough for the 0.5 km grid used in annulusPopulation().
+    let minDist = Infinity;
+    let nearest = -1;
+    for (let i = 0; i < this.data.length; i++) {
+      const dLat = lat - this.data[i].lat;
+      const dLng = lng - this.data[i].lng;
+      const d = dLat * dLat + dLng * dLng;
+      if (d < minDist) {
+        minDist = d;
+        nearest = i;
+      }
+    }
+    return nearest >= 0 ? this.data[nearest].density : 0;
+  }
+}

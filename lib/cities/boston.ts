@@ -1,8 +1,13 @@
 import type { City } from "./types";
-import { bostonZoneModel } from "../casualties/populationSources";
+import { bostonZoneModel, CensusBlockGroupModel } from "../casualties/populationSources";
 import type { PopulationSource } from "../casualties/types";
+import censusData from "./boston-census-data.json";
 
-export const bostonPopulation: PopulationSource = bostonZoneModel;
+// Use real Census block group data when available; fall back to the 3-zone
+// approximation before `node scripts/fetch-census.mjs` has been run.
+const censusModel = new CensusBlockGroupModel(censusData.blockGroups);
+export const bostonPopulation: PopulationSource =
+  censusData.blockGroups.length > 0 ? censusModel : bostonZoneModel;
 
 export const boston: City = {
   id: "boston",
@@ -13,5 +18,5 @@ export const boston: City = {
   ],
   defaultCenter: { lat: 42.3554, lng: -71.0603 },
   defaultGroundZero: { lat: 42.3554, lng: -71.0603 }, // Downtown Crossing
-  populationSource: bostonZoneModel,
+  populationSource: bostonPopulation,
 };
