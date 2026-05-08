@@ -7,13 +7,13 @@ export default function HomePage() {
         <h1 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-3">
           Nuclear Effects Simulator
         </h1>
-        <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6 leading-relaxed">
+        <p className="text-base text-slate-600 dark:text-zinc-400 mb-6 leading-relaxed">
           An interactive tool for modeling the immediate physical effects of nuclear
           detonations in urban environments. Visualizes blast overpressure, thermal
           radiation, and prompt ionizing radiation rings alongside rough casualty
           estimates.
         </p>
-        <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6 leading-relaxed">
+        <p className="text-base text-slate-600 dark:text-zinc-400 mb-6 leading-relaxed">
           Physics are based on Glasstone &amp; Dolan,{" "}
           <em>The Effects of Nuclear Weapons</em> (1977). Casualty methodology follows
           the zone-based model described in MIT course materials. This tool is intended

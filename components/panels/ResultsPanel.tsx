@@ -26,7 +26,7 @@ export function ResultsPanel({
     return (
       <div className="border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 px-6 py-4 text-center">
         <p className="text-sm text-slate-500 dark:text-zinc-400">
-          Click the Boston marker on the map to get started, or click anywhere to place ground zero.
+          Click a city on the map to get started, or click anywhere to place ground zero.
         </p>
       </div>
     );
@@ -71,11 +71,11 @@ export function ResultsPanel({
 
         <Separator className="mb-3" />
 
-        <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+        <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
           {casualties.narrative}
         </p>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-2">
+        <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2">
           All figures are rough estimates using a zone-based population density model.
           Actual casualties would depend on time of day, sheltering, building density,
           evacuation, and emergency response.

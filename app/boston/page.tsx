@@ -89,10 +89,10 @@ export default function BostonPage() {
       {/* Header */}
       <header className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-3 flex items-center justify-between">
         <div>
-          <h1 className="text-base font-semibold text-slate-900 dark:text-zinc-100">
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-zinc-100">
             Nuclear Effects Simulator
           </h1>
-          <p className="text-xs text-slate-500 dark:text-zinc-400">Boston, MA — educational tool</p>
+          <p className="text-sm text-slate-500 dark:text-zinc-400">MIT Laboratory for Nuclear Science</p>
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
