@@ -55,7 +55,7 @@ function ringsToGeoJSON(
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
-    // largest first so fills layer correctly (each ring is a full disk, not annulus)
+    // largest first so fills render correctly (each ring is a full disk, not annulus)
     features: [...rings]
       .sort((a, b) => b.radiusM - a.radiusM)
       .map((ring) => ({
@@ -125,12 +125,25 @@ export default function Map({
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const [styleId, setStyleId] = useState<StyleId>("light");
 
-  // Stable refs so event handlers in imperative callbacks never go stale
+  // Stable refs so event handlers in imperative Mapbox callbacks never go stale
   const onMapClickRef = useRef(onMapClick);
   const onGroundZeroDragRef = useRef(onGroundZeroDrag);
   const onCitySelectRef = useRef(onCitySelect);
   const ringsRef = useRef(rings);
   const groundZeroRef = useRef(groundZero);
+
+  // What we WANT rendered — written by ring update effect, read by style-load
+  // handler so rings survive style changes without relying on isStyleLoaded().
+  const desiredGeoJSON = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+
+  // Prevents the style-switch effect from calling setStyle on the first render
+  // (the map is already initialised with STYLES.light.url; a second setStyle call
+  // on an in-progress load triggers the "Rebuilding from scratch" warning and
+  // can race with the ring data update).
+  const styleInitialized = useRef(false);
 
   useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { onGroundZeroDragRef.current = onGroundZeroDrag; }, [onGroundZeroDrag]);
@@ -151,18 +164,17 @@ export default function Map({
 
     map.addControl(new mapboxgl.NavigationControl(), "top-left");
 
-    // Re-add ring sources/layers every time a new style finishes loading
-    // (covers initial load AND subsequent setStyle() calls)
-    map.on("style.load", () => {
+    // Restore sources/layers and ring data after any style load.
+    // Listening to BOTH 'load' (initial) and 'style.load' (setStyle changes)
+    // ensures we never miss the setup, regardless of which fires first.
+    const onReady = () => {
       setupRingLayers(map);
-      const gz = groundZeroRef.current;
-      const r = ringsRef.current;
-      if (gz && r.length > 0) {
-        (map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource).setData(
-          ringsToGeoJSON(r, gz)
-        );
-      }
-    });
+      (map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource).setData(
+        desiredGeoJSON.current
+      );
+    };
+    map.on("load", onReady);
+    map.on("style.load", onReady);
 
     // Map click → place / move ground zero
     map.on("click", (e) => {
@@ -219,22 +231,33 @@ export default function Map({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Style switching ───────────────────────────────────────────────────────
+  // Skip the first render: map is already initialised with STYLES.light.url.
   useEffect(() => {
+    if (!styleInitialized.current) {
+      styleInitialized.current = true;
+      return;
+    }
     mapRef.current?.setStyle(STYLES[styleId].url);
-    // style.load handler (set up in init effect) re-adds layers and restores data
+    // onReady (registered above) re-adds layers and restores desiredGeoJSON
   }, [styleId]);
 
   // ── Ring data update ──────────────────────────────────────────────────────
+  // Update desiredGeoJSON first so the style-load handler always has the
+  // latest data. Then push it to the source immediately if layers are ready;
+  // if not (source not yet added), onReady will push it when the style loads.
   useEffect(() => {
+    desiredGeoJSON.current =
+      groundZero && rings.length > 0
+        ? ringsToGeoJSON(rings, groundZero)
+        : { type: "FeatureCollection", features: [] };
+
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
     const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
-    if (!source) return;
-    if (groundZero && rings.length > 0) {
-      source.setData(ringsToGeoJSON(rings, groundZero));
-    } else {
-      source.setData({ type: "FeatureCollection", features: [] });
+    if (source) {
+      source.setData(desiredGeoJSON.current);
     }
+    // If source is undefined the map is still loading; onReady will apply it.
   }, [rings, groundZero]);
 
   // ── Ground zero marker ────────────────────────────────────────────────────
