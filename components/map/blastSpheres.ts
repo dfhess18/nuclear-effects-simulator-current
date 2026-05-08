@@ -172,6 +172,13 @@ export function createBlastSpheresLayer(): BlastSpheresLayer {
     render(_gl: WebGL2RenderingContext, matrix: number[]) {
       if (!renderer || !currentGz) return;
 
+      // 3D spheres only make sense in a tilted view. When the map is flat
+      // (top-down), the user already sees the surface effects via the 2D
+      // ground rings, and the spheres would just look like flat coloured
+      // discs overlapping the rings. Bail below ~1° pitch so floating-point
+      // noise around the 0° reset doesn't flicker the spheres in or out.
+      if ((mapInstance?.getPitch() ?? 0) < 1) return;
+
       const merc = mapboxgl.MercatorCoordinate.fromLngLat(
         { lng: currentGz.lng, lat: currentGz.lat },
         currentHobM
