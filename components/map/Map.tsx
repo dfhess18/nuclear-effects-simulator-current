@@ -166,13 +166,14 @@ export default function Map({
       style: STYLES.light.url,
       center: [center.lng, center.lat],
       zoom: initialZoom,
-      // Tilted view shows the 3D blast spheres rising above the ground rings.
-      pitch: 50,
+      // Start flat. Users can right-click + drag (or shift-drag the compass) to
+      // tilt into a 3D view; the blast spheres appear as the pitch increases.
+      pitch: 0,
       maxPitch: 80,
     });
 
-    // NavigationControl includes a compass that toggles pitch when shift-dragged
-    // and a built-in pitch reset; "visualizePitch" makes it show pitch state.
+    // visualizePitch lets the compass show the current pitch state, so users
+    // get a visual cue that the map can be tilted to reveal 3D.
     map.addControl(
       new mapboxgl.NavigationControl({ visualizePitch: true }),
       "top-left"
@@ -180,20 +181,28 @@ export default function Map({
 
     // Restore sources/layers and ring data after any style load.
     // Listening to BOTH 'load' (initial) and 'style.load' (setStyle changes)
-    // ensures we never miss the setup, regardless of which fires first.
-    // setStyle() also drops custom layers, so re-add the 3D blast layer here.
+    // ensures we never miss the setup, regardless of which fires first. Both
+    // events fire on the initial map load, so this handler is idempotent —
+    // it must NOT re-create the custom layer if one is already attached, or
+    // addLayer throws "Layer already exists" and orphans the live instance.
     const onReady = () => {
       setupRingLayers(map);
       (map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource).setData(
         desiredGeoJSON.current
       );
-      // (Re)create the custom layer — old instance is GC'd by Mapbox when the
-      // style is rebuilt. Re-creating ensures clean GL state across style swaps.
-      const layer = createBlastSpheresLayer();
-      blastLayerRef.current = layer;
-      map.addLayer(layer);
-      // Push current burst state so spheres show immediately after style swap.
-      layer.setBurst(groundZeroRef.current, hobMRef.current, ringsRef.current);
+      // Only attach a fresh blast-spheres layer when one isn't already on the
+      // map. setStyle() drops custom layers, so on style swap getLayer returns
+      // undefined and we create a new instance with clean GL state.
+      if (!map.getLayer(BLAST_SPHERES_LAYER)) {
+        const layer = createBlastSpheresLayer();
+        blastLayerRef.current = layer;
+        map.addLayer(layer);
+      }
+      blastLayerRef.current?.setBurst(
+        groundZeroRef.current,
+        hobMRef.current,
+        ringsRef.current
+      );
     };
     map.on("load", onReady);
     map.on("style.load", onReady);
