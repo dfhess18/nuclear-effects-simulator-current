@@ -16,6 +16,8 @@ export interface MapProps {
   groundZero: { lat: number; lng: number } | null;
   /** Effect rings to render. */
   rings: EffectRing[];
+  /** Burst height in meters (0 for surface burst). Used to elevate the 3D burst point. */
+  hobM?: number;
   /** Initial zoom level (default 12). */
   initialZoom?: number;
   /** City selection markers shown on the map. */

@@ -16,6 +16,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { MapProps } from "./types";
 import type { EffectRing } from "../../lib/physics/types";
 import { Legend } from "./Legend";
+import { createBlastSpheresLayer, type BlastSpheresLayer } from "./blastSpheres";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -30,6 +31,7 @@ const STYLES: Record<StyleId, { url: string; label: string }> = {
 const SOURCE_ID = "effect-rings";
 const FILL_LAYER = "effect-rings-fill";
 const STROKE_LAYER = "effect-rings-stroke";
+const BLAST_SPHERES_LAYER = "blast-spheres";
 
 /** Approximate a circle as a GeoJSON polygon (64 vertices). */
 function circleCoords(
@@ -112,6 +114,7 @@ export default function Map({
   center,
   groundZero,
   rings,
+  hobM = 0,
   initialZoom = 12,
   cityMarkers,
   onMapClick,
@@ -123,6 +126,7 @@ export default function Map({
   const gzMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const cityMarkerRefs = useRef<mapboxgl.Marker[]>([]);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const blastLayerRef = useRef<BlastSpheresLayer | null>(null);
   const [styleId, setStyleId] = useState<StyleId>("light");
 
   // Stable refs so event handlers in imperative Mapbox callbacks never go stale
@@ -131,6 +135,7 @@ export default function Map({
   const onCitySelectRef = useRef(onCitySelect);
   const ringsRef = useRef(rings);
   const groundZeroRef = useRef(groundZero);
+  const hobMRef = useRef(hobM);
 
   // What we WANT rendered — written by ring update effect, read by style-load
   // handler so rings survive style changes without relying on isStyleLoaded().
@@ -150,6 +155,7 @@ export default function Map({
   useEffect(() => { onCitySelectRef.current = onCitySelect; }, [onCitySelect]);
   useEffect(() => { ringsRef.current = rings; }, [rings]);
   useEffect(() => { groundZeroRef.current = groundZero; }, [groundZero]);
+  useEffect(() => { hobMRef.current = hobM; }, [hobM]);
 
   // ── Map initialisation (runs once on mount) ──────────────────────────────
   useEffect(() => {
@@ -160,18 +166,34 @@ export default function Map({
       style: STYLES.light.url,
       center: [center.lng, center.lat],
       zoom: initialZoom,
+      // Tilted view shows the 3D blast spheres rising above the ground rings.
+      pitch: 50,
+      maxPitch: 80,
     });
 
-    map.addControl(new mapboxgl.NavigationControl(), "top-left");
+    // NavigationControl includes a compass that toggles pitch when shift-dragged
+    // and a built-in pitch reset; "visualizePitch" makes it show pitch state.
+    map.addControl(
+      new mapboxgl.NavigationControl({ visualizePitch: true }),
+      "top-left"
+    );
 
     // Restore sources/layers and ring data after any style load.
     // Listening to BOTH 'load' (initial) and 'style.load' (setStyle changes)
     // ensures we never miss the setup, regardless of which fires first.
+    // setStyle() also drops custom layers, so re-add the 3D blast layer here.
     const onReady = () => {
       setupRingLayers(map);
       (map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource).setData(
         desiredGeoJSON.current
       );
+      // (Re)create the custom layer — old instance is GC'd by Mapbox when the
+      // style is rebuilt. Re-creating ensures clean GL state across style swaps.
+      const layer = createBlastSpheresLayer();
+      blastLayerRef.current = layer;
+      map.addLayer(layer);
+      // Push current burst state so spheres show immediately after style swap.
+      layer.setBurst(groundZeroRef.current, hobMRef.current, ringsRef.current);
     };
     map.on("load", onReady);
     map.on("style.load", onReady);
@@ -258,7 +280,10 @@ export default function Map({
       source.setData(desiredGeoJSON.current);
     }
     // If source is undefined the map is still loading; onReady will apply it.
-  }, [rings, groundZero]);
+
+    // Push the same burst state to the 3D layer.
+    blastLayerRef.current?.setBurst(groundZero, hobM, rings);
+  }, [rings, groundZero, hobM]);
 
   // ── Ground zero marker ────────────────────────────────────────────────────
   useEffect(() => {
@@ -287,13 +312,18 @@ export default function Map({
         .setLngLat([groundZero.lng, groundZero.lat])
         .addTo(map);
 
-      // Update ring GeoJSON live during drag (no React re-render needed)
+      // Update ring GeoJSON + 3D spheres live during drag (no React re-render).
       marker.on("drag", () => {
         const { lng, lat } = marker.getLngLat();
         const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
         if (source && ringsRef.current.length > 0) {
           source.setData(ringsToGeoJSON(ringsRef.current, { lat, lng }));
         }
+        blastLayerRef.current?.setBurst(
+          { lat, lng },
+          hobMRef.current,
+          ringsRef.current
+        );
       });
 
       marker.on("dragend", () => {

@@ -136,6 +136,7 @@ export default function BostonPage() {
               cityMarkers={CITY_MARKERS}
               groundZero={groundZero}
               rings={results?.rings ?? []}
+              hobM={burstType === "airburst" ? hobM : 0}
               onMapClick={handleGroundZeroMove}
               onGroundZeroDrag={handleGroundZeroMove}
               onCitySelect={handleCitySelect}
