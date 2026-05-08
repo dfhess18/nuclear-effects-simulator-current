@@ -58,26 +58,50 @@ interface BlockGroupRecord {
 }
 
 export class CensusBlockGroupModel implements PopulationSource {
-  private readonly data: BlockGroupRecord[];
+  // Pre-computed spatial grid for O(1) lookups.
+  // Grid covers Suffolk County with a buffer; points outside fall back to a
+  // suburban density matching the zone model's outer ring.
+  private readonly grid: Float32Array;
+  private readonly LAT_MIN = 42.20;
+  private readonly LNG_MIN = -71.22;
+  private readonly STEP = 0.005; // ~0.55 km per cell
+  private readonly N_LAT = 52;   // 42.20 → 42.46
+  private readonly N_LNG = 58;   // -71.22 → -70.93
+  // Cells more than ~11 km from any centroid get suburban fallback density
+  private readonly FAR_SQ = 0.1 * 0.1;
+  private readonly SUBURBAN = 1500; // people/km²
 
   constructor(blockGroups: BlockGroupRecord[]) {
-    this.data = blockGroups;
+    this.grid = new Float32Array(this.N_LAT * this.N_LNG).fill(this.SUBURBAN);
+    if (blockGroups.length === 0) return;
+
+    // For each grid cell, find the nearest block group centroid.
+    // One-time cost: ~3000 cells × 680 block groups ≈ 2M comparisons (<10ms).
+    for (let r = 0; r < this.N_LAT; r++) {
+      const lat = this.LAT_MIN + (r + 0.5) * this.STEP;
+      for (let c = 0; c < this.N_LNG; c++) {
+        const lng = this.LNG_MIN + (c + 0.5) * this.STEP;
+        let minDist = Infinity;
+        let nearestDensity = this.SUBURBAN;
+        for (const bg of blockGroups) {
+          const dLat = lat - bg.lat;
+          const dLng = lng - bg.lng;
+          const d = dLat * dLat + dLng * dLng;
+          if (d < minDist) {
+            minDist = d;
+            nearestDensity = bg.density;
+          }
+        }
+        this.grid[r * this.N_LNG + c] =
+          minDist <= this.FAR_SQ ? nearestDensity : this.SUBURBAN;
+      }
+    }
   }
 
   getDensityAt(lat: number, lng: number): number {
-    // Nearest-centroid lookup — O(n) over ~500 Suffolk County block groups.
-    // Fast enough for the 0.5 km grid used in annulusPopulation().
-    let minDist = Infinity;
-    let nearest = -1;
-    for (let i = 0; i < this.data.length; i++) {
-      const dLat = lat - this.data[i].lat;
-      const dLng = lng - this.data[i].lng;
-      const d = dLat * dLat + dLng * dLng;
-      if (d < minDist) {
-        minDist = d;
-        nearest = i;
-      }
-    }
-    return nearest >= 0 ? this.data[nearest].density : 0;
+    const r = Math.floor((lat - this.LAT_MIN) / this.STEP);
+    const c = Math.floor((lng - this.LNG_MIN) / this.STEP);
+    if (r < 0 || r >= this.N_LAT || c < 0 || c >= this.N_LNG) return this.SUBURBAN;
+    return this.grid[r * this.N_LNG + c];
   }
 }
