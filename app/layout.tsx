@@ -39,7 +39,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className={`${geistSans.className} ${geistMono.variable} min-h-full flex flex-col`}>{children}</body>
     </html>
   );
 }
