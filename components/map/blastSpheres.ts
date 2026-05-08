@@ -2,16 +2,20 @@
  * blastSpheres.ts — Mapbox custom layer that renders effect rings as 3D spheres.
  *
  * Each ring becomes a sphere centered at the burst point (HOB altitude for an
- * airburst, ground level for a surface burst). The sphere's slant radius is
- *   r_slant = sqrt(groundRadius² + HOB²)
- * so that the sphere intersects the ground plane at exactly the ground radius
- * computed by the physics module. This keeps the 2D ground rings and 3D spheres
- * geometrically consistent without changing any physics.
+ * airburst, ground level for a surface burst), sized by its *free-air slant
+ * radius* (`ring.sphereRadiusM`). The free-air radius is HOB-independent,
+ * which matches the physics in BlastWave_Physics.pdf: the unreflected shock
+ * front propagates spherically outward; Mach reflection only enlarges the
+ * *ground footprint*, not the free-air shock itself. The 2D ground rings show
+ * the Mach-amplified footprint; the 3D spheres show the free-air shock front.
  *
- * Surface burst (HOB=0): center at ground, radius = groundRadius → visible
- *   half is a hemisphere sitting on the ground.
- * Airburst: center at altitude, full sphere visible (intersecting ground inside
- *   ring radius).
+ * Surface burst (HOB=0): sphere center on the ground, sphere radius == ground
+ *   ring radius (no Mach amplification applies — surface burst already
+ *   couples the upper hemisphere of the free-air sphere to the ground).
+ * Airburst: sphere stays the same size as HOB increases — it just lifts. At
+ *   high HOB the sphere may not touch the ground at all (the threshold isn't
+ *   reached on the surface from the unreflected wave); the 2D ring still shows
+ *   the Mach-extended ground footprint independently.
  *
  * Implementation follows the standard Mapbox + Three.js custom layer pattern:
  *   https://docs.mapbox.com/mapbox-gl-js/example/add-3d-model/
@@ -86,10 +90,14 @@ export function createBlastSpheresLayer(): BlastSpheresLayer {
     }
 
     // Largest first so smaller spheres render on top.
-    const sorted = [...currentRings].sort((a, b) => b.radiusM - a.radiusM);
+    const sorted = [...currentRings].sort(
+      (a, b) => b.sphereRadiusM - a.sphereRadiusM
+    );
     sorted.forEach((ring, i) => {
-      // Slant radius — sphere intersects ground at exactly ring.radiusM.
-      const slantR = Math.sqrt(ring.radiusM ** 2 + currentHobM ** 2);
+      // Free-air slant radius — HOB-independent. For blast rings this is
+      // smaller than ring.radiusM whenever Mach reflection has stretched the
+      // ground footprint outward.
+      const slantR = ring.sphereRadiusM;
 
       let mesh = ringMeshes[i];
       if (!mesh) {

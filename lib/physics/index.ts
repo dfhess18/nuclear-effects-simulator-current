@@ -26,6 +26,7 @@ export function computeEffects(
   const rings: EffectRing[] = [
     ...blastRings.map((r) => ({
       radiusM: r.radiusM,
+      sphereRadiusM: r.sphereRadiusM,
       category: "blast" as const,
       color: r.color,
       fillOpacity: 0.15,
@@ -33,8 +34,11 @@ export function computeEffects(
       physicalDescription: r.physicalDescription,
       casualtyRateInner: r.casualtyRateInner,
     })),
+    // Thermal and prompt radiation propagate spherically with no Mach analogue,
+    // so the spherical free-air radius equals the ground-range radius.
     ...thermalRings.map((r) => ({
       radiusM: r.radiusM,
+      sphereRadiusM: r.radiusM,
       category: "thermal" as const,
       color: r.color,
       fillOpacity: 0.12,
@@ -44,6 +48,7 @@ export function computeEffects(
     })),
     ...radiationRings.map((r) => ({
       radiusM: r.radiusM,
+      sphereRadiusM: r.radiusM,
       category: "radiation" as const,
       color: r.color,
       fillOpacity: 0.12,

@@ -17,7 +17,11 @@ import type { WeaponSpec } from "./types";
 
 export interface BlastRing {
   psi: number;
+  /** Ground-range radius (m). For airburst this includes Mach amplification. */
   radiusM: number;
+  /** Free-air slant radius (m) of the spherical shock front for this
+   *  overpressure. HOB-independent; used for the 3D visualization. */
+  sphereRadiusM: number;
   color: string;
   thresholdLabel: string;
   physicalDescription: string;
@@ -128,10 +132,30 @@ function radiusForPsi(psi: number, weapon: WeaponSpec): number {
   return d1 * scaleFactor;
 }
 
+/**
+ * Free-air slant radius (m) at which the given overpressure occurs in
+ * unobstructed air around the burst point. Independent of HOB.
+ *
+ * Source: BlastWave_Physics.pdf and Class 7B notes describe the unreflected
+ * shock as propagating *spherically* outward, with Mach reflection modifying
+ * only the *ground footprint* — not the free-air shock front itself. The
+ * cube-root scaling law (eq. 3.66.2) gives d = d₁ × W^(1/3) for any threshold,
+ * where d₁ is the 1-kT reference radius. We use the surface-burst 1-kT radii
+ * as the reference: a contact burst is essentially a hemisphere of the same
+ * spherical wave, so its ground radius equals the spherical free-air radius
+ * for the (effectively coupled) yield. This makes the 3D sphere coincide
+ * with the 2D ring when HOB=0, and stay HOB-independent for any airburst.
+ */
+export function freeAirRadiusM(yieldKt: number, psi: number): number {
+  const d1 = SURFACE_1KT_RADII_M[psi];
+  return d1 * Math.pow(yieldKt, 1 / 3);
+}
+
 export function computeBlastRings(weapon: WeaponSpec): BlastRing[] {
   return PSI_THRESHOLDS.map((psi) => ({
     psi,
     radiusM: radiusForPsi(psi, weapon),
+    sphereRadiusM: freeAirRadiusM(weapon.yieldKt, psi),
     color: BLAST_COLORS[psi],
     thresholdLabel: `${psi} psi`,
     physicalDescription: PHYSICAL_DESCRIPTIONS[psi],
