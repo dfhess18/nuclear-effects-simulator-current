@@ -167,11 +167,6 @@ export default function Map({
       style: STYLES.light.url,
       center: [center.lng, center.lat],
       zoom: initialZoom,
-      // Force a flat Mercator projection. Mapbox v3 defaults to "globe" at low
-      // zoom which curves the world and makes city markers look mispositioned
-      // relative to the country outline. Mercator keeps the country flat and
-      // makes the marker placements predictable.
-      projection: "mercator",
       // Start flat. Users can right-click + drag (or shift-drag the compass) to
       // tilt into a 3D view; the blast spheres appear as the pitch increases.
       pitch: 0,
@@ -268,18 +263,14 @@ export default function Map({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fly-to (city switching) ───────────────────────────────────────────────
-  // Whenever the parent passes a NEW flyTo center (active city changed via
-  // dropdown or marker click), animate the camera there. We skip the very
-  // first render — the parent passes the active-city center on initial mount
-  // (so it's available when the user does pick a city), but we don't want to
-  // pre-empt the country-level overview the page is supposed to open at.
-  const flyToInitialised = useRef(false);
+  // The parent passes flyTo only when the user has actively picked a city
+  // (dropdown / marker click). On initial mount it's `undefined`, so the map
+  // stays at its country-level overview. Each subsequent change of flyTo
+  // (.lat or .lng) animates the camera to the new target. A ref-based
+  // "skip initial" guard would work in production but double-fires in React
+  // strict mode and ends up flying anyway, so the parent owns this signal.
   useEffect(() => {
     if (!flyTo || !mapRef.current) return;
-    if (!flyToInitialised.current) {
-      flyToInitialised.current = true;
-      return;
-    }
     mapRef.current.flyTo({
       center: [flyTo.lng, flyTo.lat],
       zoom: 12,
@@ -381,15 +372,17 @@ export default function Map({
     cityMarkerRefs.current.forEach((m) => m.remove());
     cityMarkerRefs.current = [];
 
-    // Toggle helper: at country/regional zoom, 21 always-on labels become a
-    // tangled mess. Hide labels at zoom < LABEL_ZOOM and reveal them on hover.
+    // Two-marker pattern: one Mapbox Marker for the dot (anchored at its
+    // centre) and a separate Marker for the label (anchored at its bottom,
+    // shifted up by an offset). Combining dot + label into a single element
+    // with an absolutely-positioned label child made Mapbox's anchor
+    // calculation drift — the dot would render BELOW the actual lat/lng,
+    // misaligned with the ground-zero marker. Separate markers each have
+    // clean bounds so anchoring is exact for both.
     const LABEL_ZOOM = 7;
     const allLabels: HTMLDivElement[] = [];
 
     (cityMarkers ?? []).forEach((city) => {
-      const wrapper = document.createElement("div");
-      wrapper.style.cssText = "position:relative;width:14px;height:14px;";
-
       const dot = document.createElement("div");
       Object.assign(dot.style, {
         width: "14px",
@@ -400,51 +393,51 @@ export default function Map({
         boxShadow: "0 0 0 1.5px #2563eb,0 2px 6px rgba(0,0,0,0.4)",
         cursor: "pointer",
       });
-
-      const label = document.createElement("div");
-      label.textContent = city.label;
-      // Initial visibility set by first zoom check below.
-      label.style.cssText = [
-        "position:absolute",
-        "bottom:18px",
-        "left:50%",
-        "transform:translateX(-50%)",
-        "background:white",
-        "color:#1e293b",
-        "padding:2px 6px",
-        "border-radius:4px",
-        "font-size:11px",
-        "font-weight:500",
-        "white-space:nowrap",
-        "box-shadow:0 1px 4px rgba(0,0,0,0.2)",
-        "pointer-events:none",
-        "display:none", // start hidden; zoom listener / hover toggles
-      ].join(";");
-      allLabels.push(label);
-
-      wrapper.appendChild(dot);
-      wrapper.appendChild(label);
-
-      // Show this label on hover regardless of zoom — gives the user the
-      // affordance of "what city is this dot?" before clicking.
-      wrapper.addEventListener("mouseenter", () => {
-        label.style.display = "block";
-      });
-      wrapper.addEventListener("mouseleave", () => {
-        if (map.getZoom() < LABEL_ZOOM) label.style.display = "none";
-      });
-
-      wrapper.addEventListener("click", (e) => {
+      dot.addEventListener("click", (e) => {
         e.stopPropagation();
         onCitySelectRef.current?.(city.lat, city.lng);
         map.flyTo({ center: [city.lng, city.lat], zoom: 12, duration: 1200 });
       });
-
-      const marker = new mapboxgl.Marker({ element: wrapper })
+      const dotMarker = new mapboxgl.Marker({ element: dot })
         .setLngLat([city.lng, city.lat])
         .addTo(map);
+      cityMarkerRefs.current.push(dotMarker);
 
-      cityMarkerRefs.current.push(marker);
+      const label = document.createElement("div");
+      label.textContent = city.label;
+      Object.assign(label.style, {
+        background: "white",
+        color: "#1e293b",
+        padding: "2px 6px",
+        borderRadius: "4px",
+        fontSize: "11px",
+        fontWeight: "500",
+        whiteSpace: "nowrap",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+        pointerEvents: "none",
+        display: "none", // toggled by zoom listener and dot hover
+      });
+      allLabels.push(label);
+      // Anchor 'bottom' = label's bottom edge sits at the lng/lat. Negative
+      // y in offset shifts the label upward so its bottom sits ~12px above
+      // the dot's centre, leaving the dot fully visible underneath.
+      const labelMarker = new mapboxgl.Marker({
+        element: label,
+        anchor: "bottom",
+        offset: [0, -12],
+      })
+        .setLngLat([city.lng, city.lat])
+        .addTo(map);
+      cityMarkerRefs.current.push(labelMarker);
+
+      // Show this city's label on hover even when global zoom is below the
+      // threshold — gives "what city is this?" feedback before clicking.
+      dot.addEventListener("mouseenter", () => {
+        label.style.display = "block";
+      });
+      dot.addEventListener("mouseleave", () => {
+        if (map.getZoom() < LABEL_ZOOM) label.style.display = "none";
+      });
     });
 
     // Sync label visibility with zoom. Listening to "zoom" fires throughout

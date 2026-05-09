@@ -314,7 +314,12 @@ export function InputsPanel({
             <SelectTrigger className="text-sm w-full" aria-label="Active city">
               <SelectValue>{activeCity?.name ?? "Select a city"}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            {/* alignItemWithTrigger={false} disables the iOS-style pinning of
+                the selected item to the trigger position. Without this, when
+                Boston is selected the popup opens with Boston anchored to the
+                trigger and items above (Austin, etc.) get clipped above the
+                viewport — making it impossible to scroll up to them. */}
+            <SelectContent alignItemWithTrigger={false}>
               {sortedCities.map((c) => (
                 <SelectItem key={c.id} value={c.id} className="text-sm">
                   {c.name}

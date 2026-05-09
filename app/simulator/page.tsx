@@ -77,6 +77,10 @@ export default function SimulatorPage() {
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("day");
   const [weather, setWeather] = useState<Weather>("clear");
   const [groundZero, setGroundZero] = useState<{ lat: number; lng: number } | null>(null);
+  // Only set when the user actively picks a city (dropdown / marker click).
+  // The Map flies to it on change; on initial mount it's undefined so the
+  // map stays at the country-level overview the user expects.
+  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number } | undefined>();
 
   const activeYieldKt = useCustomYield ? customYieldKt : preset.yieldKt;
 
@@ -94,8 +98,8 @@ export default function SimulatorPage() {
     [activeYieldKt]
   );
 
-  // Clicking a city marker on the map: switch active city AND set GZ to the
-  // marker's location (which equals that city's default GZ).
+  // Clicking a city marker on the map: switch active city, set GZ at the
+  // city, and trigger a fly-to.
   const handleCitySelect = useCallback((lat: number, lng: number) => {
     const hit = CITIES.find(
       (c) =>
@@ -104,6 +108,7 @@ export default function SimulatorPage() {
     );
     if (hit) setCityId(hit.id);
     setGroundZero({ lat, lng });
+    setFlyToTarget({ lat, lng });
   }, []);
 
   const handleGroundZeroMove = useCallback((lat: number, lng: number) => {
@@ -111,11 +116,14 @@ export default function SimulatorPage() {
   }, []);
 
   // Dropdown selection: switch city, fly to it, drop GZ on its default.
+  // setFlyToTarget creates a NEW object reference even if the user picks
+  // the same city twice — the Map's effect re-fires on identity change.
   const handleCityIdChange = useCallback((id: string) => {
     const c = findCity(id);
     if (!c) return;
     setCityId(id);
     setGroundZero({ lat: c.defaultGroundZero.lat, lng: c.defaultGroundZero.lng });
+    setFlyToTarget({ lat: c.defaultCenter.lat, lng: c.defaultCenter.lng });
   }, []);
 
   const results = useMemo(() => {
@@ -181,7 +189,7 @@ export default function SimulatorPage() {
               bounds={activeCity.bounds}
               initialZoom={4}
               cityMarkers={CITY_MARKERS}
-              flyTo={activeCity.defaultCenter}
+              flyTo={flyToTarget}
               groundZero={groundZero}
               rings={results?.rings ?? []}
               hobM={burstType === "airburst" ? hobM : 0}
