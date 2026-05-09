@@ -167,6 +167,11 @@ export default function Map({
       style: STYLES.light.url,
       center: [center.lng, center.lat],
       zoom: initialZoom,
+      // Force a flat Mercator projection. Mapbox v3 defaults to "globe" at low
+      // zoom which curves the world and makes city markers look mispositioned
+      // relative to the country outline. Mercator keeps the country flat and
+      // makes the marker placements predictable.
+      projection: "mercator",
       // Start flat. Users can right-click + drag (or shift-drag the compass) to
       // tilt into a 3D view; the blast spheres appear as the pitch increases.
       pitch: 0,
@@ -263,11 +268,18 @@ export default function Map({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fly-to (city switching) ───────────────────────────────────────────────
-  // Whenever the parent passes a new flyTo center (active city changed via
-  // dropdown or marker click), animate the camera there. flyTo() is a no-op
-  // if the target equals the current centre, so this is safe on every render.
+  // Whenever the parent passes a NEW flyTo center (active city changed via
+  // dropdown or marker click), animate the camera there. We skip the very
+  // first render — the parent passes the active-city center on initial mount
+  // (so it's available when the user does pick a city), but we don't want to
+  // pre-empt the country-level overview the page is supposed to open at.
+  const flyToInitialised = useRef(false);
   useEffect(() => {
     if (!flyTo || !mapRef.current) return;
+    if (!flyToInitialised.current) {
+      flyToInitialised.current = true;
+      return;
+    }
     mapRef.current.flyTo({
       center: [flyTo.lng, flyTo.lat],
       zoom: 12,
@@ -369,6 +381,11 @@ export default function Map({
     cityMarkerRefs.current.forEach((m) => m.remove());
     cityMarkerRefs.current = [];
 
+    // Toggle helper: at country/regional zoom, 21 always-on labels become a
+    // tangled mess. Hide labels at zoom < LABEL_ZOOM and reveal them on hover.
+    const LABEL_ZOOM = 7;
+    const allLabels: HTMLDivElement[] = [];
+
     (cityMarkers ?? []).forEach((city) => {
       const wrapper = document.createElement("div");
       wrapper.style.cssText = "position:relative;width:14px;height:14px;";
@@ -386,6 +403,7 @@ export default function Map({
 
       const label = document.createElement("div");
       label.textContent = city.label;
+      // Initial visibility set by first zoom check below.
       label.style.cssText = [
         "position:absolute",
         "bottom:18px",
@@ -400,10 +418,21 @@ export default function Map({
         "white-space:nowrap",
         "box-shadow:0 1px 4px rgba(0,0,0,0.2)",
         "pointer-events:none",
+        "display:none", // start hidden; zoom listener / hover toggles
       ].join(";");
+      allLabels.push(label);
 
       wrapper.appendChild(dot);
       wrapper.appendChild(label);
+
+      // Show this label on hover regardless of zoom — gives the user the
+      // affordance of "what city is this dot?" before clicking.
+      wrapper.addEventListener("mouseenter", () => {
+        label.style.display = "block";
+      });
+      wrapper.addEventListener("mouseleave", () => {
+        if (map.getZoom() < LABEL_ZOOM) label.style.display = "none";
+      });
 
       wrapper.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -417,6 +446,18 @@ export default function Map({
 
       cityMarkerRefs.current.push(marker);
     });
+
+    // Sync label visibility with zoom. Listening to "zoom" fires throughout
+    // the animation so the transition feels live.
+    const syncLabels = () => {
+      const show = map.getZoom() >= LABEL_ZOOM;
+      for (const el of allLabels) el.style.display = show ? "block" : "none";
+    };
+    syncLabels();
+    map.on("zoom", syncLabels);
+    return () => {
+      map.off("zoom", syncLabels);
+    };
   }, [cityMarkers]);
 
   return (
