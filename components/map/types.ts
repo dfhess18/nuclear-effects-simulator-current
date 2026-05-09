@@ -22,6 +22,9 @@ export interface MapProps {
   initialZoom?: number;
   /** City selection markers shown on the map. */
   cityMarkers?: CityMarker[];
+  /** When this changes (by reference or coords), the map flies to it. Used
+   *  for switching active city via the dropdown / marker click. */
+  flyTo?: { lat: number; lng: number };
   /** Called when the user clicks the map. */
   onMapClick: (lat: number, lng: number) => void;
   /** Called when the ground zero marker is dragged to a new position. */

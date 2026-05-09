@@ -16,6 +16,7 @@ import { PRESETS } from "@/lib/weapons/presets";
 import type { WeaponPreset } from "@/lib/weapons/types";
 import type { BurstType, Weather, TimeOfDay } from "@/lib/physics/types";
 import { optimalHobM } from "@/lib/physics/blast";
+import type { CityEntry } from "@/lib/cities/registry";
 
 interface InputsPanelProps {
   preset: WeaponPreset;
@@ -26,6 +27,8 @@ interface InputsPanelProps {
   timeOfDay: TimeOfDay;
   weather: Weather;
   groundZero: { lat: number; lng: number } | null;
+  cityId: string;
+  cities: CityEntry[];
 
   onPresetChange: (preset: WeaponPreset) => void;
   onCustomYieldChange: (kt: number) => void;
@@ -35,6 +38,7 @@ interface InputsPanelProps {
   onTimeOfDayChange: (t: TimeOfDay) => void;
   onWeatherChange: (w: Weather) => void;
   onResetGroundZero: () => void;
+  onCityChange: (id: string) => void;
 }
 
 export function InputsPanel({
@@ -46,6 +50,8 @@ export function InputsPanel({
   timeOfDay,
   weather,
   groundZero,
+  cityId,
+  cities,
   onPresetChange,
   onCustomYieldChange,
   onUseCustomYieldChange,
@@ -54,8 +60,12 @@ export function InputsPanel({
   onTimeOfDayChange,
   onWeatherChange,
   onResetGroundZero,
+  onCityChange,
 }: InputsPanelProps) {
   const activeYield = useCustomYield ? customYieldKt : preset.yieldKt;
+  const activeCity = cities.find((c) => c.id === cityId);
+  // Sort alphabetically for the dropdown — easier to scan 21 cities.
+  const sortedCities = [...cities].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <aside className="w-72 flex-shrink-0 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 overflow-y-auto">
@@ -276,7 +286,7 @@ export function InputsPanel({
                 className="w-full text-xs mt-1"
                 onClick={onResetGroundZero}
               >
-                Reset to Downtown Crossing
+                Reset to {activeCity?.name.split(",")[0] ?? "city"} default
               </Button>
             </div>
           ) : (
@@ -284,6 +294,38 @@ export function InputsPanel({
               Set a ground zero to get started.
             </p>
           )}
+        </div>
+
+        <Separator />
+
+        {/* City selector — switching pans the map and drops GZ on the new
+            city's default landmark. The dropdown is alphabetised so 21
+            entries are easy to scan. */}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-zinc-200 uppercase tracking-wider mb-2">
+            City
+          </h2>
+          <Select
+            value={cityId}
+            onValueChange={(v) => {
+              if (typeof v === "string") onCityChange(v);
+            }}
+          >
+            <SelectTrigger className="text-sm w-full" aria-label="Active city">
+              <SelectValue>{activeCity?.name ?? "Select a city"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {sortedCities.map((c) => (
+                <SelectItem key={c.id} value={c.id} className="text-sm">
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1.5 leading-snug">
+            Casualty estimates use US Census block-group population data
+            for the active city.
+          </p>
         </div>
       </div>
     </aside>

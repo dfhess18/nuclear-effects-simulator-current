@@ -22,13 +22,13 @@ export default function HomePage() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center mb-10">
           <Link
-            href="/boston"
+            href="/simulator"
             className="inline-block rounded-lg bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 text-sm font-medium hover:bg-slate-700 dark:hover:bg-slate-300 transition-colors"
           >
             Open Simulator
           </Link>
           <span className="text-xs text-slate-500 dark:text-zinc-500">
-            Boston, MA — more cities coming in future releases
+            Top 20 US cities + Boston — switch via the in-app dropdown
           </span>
         </div>
 

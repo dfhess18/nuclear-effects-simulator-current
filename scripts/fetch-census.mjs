@@ -1,17 +1,24 @@
 /**
  * fetch-census.mjs
  *
- * Fetches 2020 ACS 5-year block group population data for Suffolk County, MA
- * (FIPS 25025) and block group geometry from the Census TIGERweb REST API.
- * Outputs lib/cities/boston-census-data.json for use by CensusBlockGroupModel.
+ * Fetches 2020 ACS 5-year block-group population (B01003_001E) and
+ * TIGERweb block-group geometry for every county listed for a given
+ * city in lib/cities/registry.ts, joins them by GEOID, and writes the
+ * result to lib/cities/data/{cityId}.json. The runtime
+ * CensusBlockGroupModel reads these files lazily.
  *
- * Run once (or when you want to refresh the data):
- *   node scripts/fetch-census.mjs
+ * Usage:
+ *   node scripts/fetch-census.mjs <cityId>     # one city
+ *   node scripts/fetch-census.mjs all          # every city in the registry
  *
  * Requires CENSUS_API_KEY in .env.local.
+ *
+ * Throttling: counties are fetched serially with a small inter-request
+ * delay to avoid hitting Census/TIGERweb rate limits when a city has
+ * many counties (e.g. NYC = 9, DC = 6).
  */
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -31,28 +38,55 @@ function loadEnv() {
   return env;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Read the registry as plain text and extract the city list. The registry
+// lives in TypeScript so we can't import it directly from a .mjs script
+// without running tsc; parse the literal array instead. This keeps the
+// script dependency-free and the registry as the single source of truth.
+function loadRegistry() {
+  const src = readFileSync(join(ROOT, "lib/cities/registry.ts"), "utf8");
+  // crude but reliable: extract every CityEntry block
+  const cities = [];
+  const cityRe =
+    /\{\s*id:\s*"([^"]+)",[\s\S]*?counties:\s*\[([\s\S]*?)\][\s\S]*?\},?/g;
+  for (const m of src.matchAll(cityRe)) {
+    const [, id, countiesBlock] = m;
+    const counties = [];
+    const countyRe = /state:\s*"(\d{2})",\s*county:\s*"(\d{3})"/g;
+    for (const cm of countiesBlock.matchAll(countyRe)) {
+      counties.push({ state: cm[1], county: cm[2] });
+    }
+    if (counties.length > 0) cities.push({ id, counties });
+  }
+  return cities;
+}
+
 // ── Census ACS 2020 5-year ────────────────────────────────────────────────────
 
-async function fetchACS(key) {
+async function fetchACS(state, county, key) {
   const url = new URL("https://api.census.gov/data/2020/acs/acs5");
   url.searchParams.set("get", "B01003_001E,NAME");
   url.searchParams.set("for", "block group:*");
-  url.searchParams.set("in", "state:25 county:025 tract:*");
+  url.searchParams.set("in", `state:${state} county:${county} tract:*`);
   url.searchParams.set("key", key);
 
-  console.log("→ Census ACS 2020 — block group population for Suffolk County…");
   const res = await fetch(url.toString());
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Census ACS ${res.status}: ${body.slice(0, 300)}`);
+    throw new Error(
+      `Census ACS state=${state} county=${county} ${res.status}: ${body.slice(0, 200)}`
+    );
   }
 
-  const [headers, ...rows] = await res.json();
+  const json = await res.json();
+  if (!Array.isArray(json) || json.length === 0) return {};
+
+  const [headers, ...rows] = json;
   const col = (name) => headers.indexOf(name);
 
   const pop = {};
   for (const row of rows) {
-    // GEOID: 2-digit state + 3-digit county + 6-digit tract + 1-digit block group
     const geoid =
       row[col("state")] +
       row[col("county")].padStart(3, "0") +
@@ -60,20 +94,17 @@ async function fetchACS(key) {
       row[col("block group")];
     pop[geoid] = parseInt(row[col("B01003_001E")], 10) || 0;
   }
-
-  console.log(`  ✓ ${Object.keys(pop).length} block groups`);
   return pop;
 }
 
 // ── TIGERweb geometry ─────────────────────────────────────────────────────────
 
-async function fetchTIGER() {
-  // ACS 2022 MapServer — layer 8 = Block Groups
+async function fetchTIGER(state, county) {
   const base =
     "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_ACS2022/MapServer/8/query";
 
   const params = new URLSearchParams({
-    where: "STATE='25' AND COUNTY='025'",
+    where: `STATE='${state}' AND COUNTY='${county}'`,
     outFields: "GEOID,AREALAND",
     returnGeometry: "true",
     outSR: "4326",
@@ -81,28 +112,28 @@ async function fetchTIGER() {
     resultRecordCount: "2000",
   });
 
-  console.log("→ TIGERweb — block group polygons for Suffolk County…");
   const res = await fetch(`${base}?${params}`);
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`TIGERweb ${res.status}: ${body.slice(0, 300)}`);
+    throw new Error(
+      `TIGERweb state=${state} county=${county} ${res.status}: ${body.slice(0, 200)}`
+    );
   }
 
   const data = await res.json();
-  if (data.error)
-    throw new Error(`TIGERweb error: ${JSON.stringify(data.error)}`);
-
-  console.log(`  ✓ ${data.features.length} polygons`);
-  return data.features;
+  if (data.error) {
+    throw new Error(
+      `TIGERweb state=${state} county=${county} error: ${JSON.stringify(data.error)}`
+    );
+  }
+  return data.features ?? [];
 }
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
 function polygonCentroid(rings) {
-  // Average of outer-ring vertices (fast; accurate enough for small polygons)
   const coords = rings[0];
-  let sumLng = 0,
-    sumLat = 0;
+  let sumLng = 0, sumLat = 0;
   for (const [lng, lat] of coords) {
     sumLng += lng;
     sumLat += lat;
@@ -113,6 +144,69 @@ function polygonCentroid(rings) {
   };
 }
 
+// ── Fetch one city ────────────────────────────────────────────────────────────
+
+async function fetchCity(city, key) {
+  console.log(`\n──── ${city.id} (${city.counties.length} counties) ────`);
+
+  const blockGroups = [];
+  let totalSkipped = 0;
+
+  for (const { state, county } of city.counties) {
+    process.stdout.write(`  ${state}-${county} `);
+    const [pop, features] = await Promise.all([
+      fetchACS(state, county, key),
+      fetchTIGER(state, county),
+    ]);
+
+    let added = 0, skipped = 0;
+    for (const feat of features) {
+      const geoid = feat.attributes.GEOID;
+      const areaLandM2 = feat.attributes.AREALAND ?? 0;
+      const popHere = pop[geoid];
+
+      if (popHere === undefined || areaLandM2 === 0) {
+        skipped++;
+        continue;
+      }
+
+      const { lat, lng } = polygonCentroid(feat.geometry.rings);
+      const areaKm2 = areaLandM2 / 1e6;
+
+      blockGroups.push({
+        geoid,
+        lat: Math.round(lat * 1e6) / 1e6,
+        lng: Math.round(lng * 1e6) / 1e6,
+        population: popHere,
+        areaKm2: Math.round(areaKm2 * 100) / 100,
+        density: Math.round(popHere / areaKm2),
+      });
+      added++;
+    }
+    totalSkipped += skipped;
+    console.log(`→ ${added} block groups (${skipped} skipped)`);
+    await sleep(150); // gentle pacing
+  }
+
+  // Stats
+  const densities = blockGroups.map((b) => b.density).sort((a, b) => a - b);
+  const median = densities[Math.floor(densities.length / 2)] ?? 0;
+  const totalPop = blockGroups.reduce((s, b) => s + b.population, 0);
+
+  console.log(
+    `  ── total: ${blockGroups.length} block groups, ` +
+      `pop ${totalPop.toLocaleString()}, ` +
+      `density min/median/max = ${densities[0] ?? 0}/${median}/${densities.at(-1) ?? 0}`
+  );
+
+  const dataDir = join(ROOT, "lib/cities/data");
+  if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+
+  const outPath = join(dataDir, `${city.id}.json`);
+  writeFileSync(outPath, JSON.stringify({ blockGroups }));
+  console.log(`  ✓ ${outPath.replace(ROOT + "\\", "").replace(ROOT + "/", "")}`);
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -120,55 +214,34 @@ async function main() {
   const key = env["CENSUS_API_KEY"];
   if (!key) throw new Error("CENSUS_API_KEY not set in .env.local");
 
-  const [population, features] = await Promise.all([
-    fetchACS(key),
-    fetchTIGER(),
-  ]);
-
-  const blockGroups = [];
-  let skipped = 0;
-
-  for (const feat of features) {
-    const geoid = feat.attributes.GEOID;
-    const areaLandM2 = feat.attributes.AREALAND ?? 0;
-    const pop = population[geoid];
-
-    if (pop === undefined || areaLandM2 === 0) {
-      skipped++;
-      continue;
-    }
-
-    const { lat, lng } = polygonCentroid(feat.geometry.rings);
-    const areaKm2 = areaLandM2 / 1e6;
-
-    blockGroups.push({
-      geoid,
-      lat: Math.round(lat * 1e6) / 1e6,
-      lng: Math.round(lng * 1e6) / 1e6,
-      population: pop,
-      areaKm2: Math.round(areaKm2 * 100) / 100,
-      // people/km² — the value CensusBlockGroupModel.getDensityAt() returns
-      density: Math.round(pop / areaKm2),
-    });
+  const arg = process.argv[2];
+  if (!arg) {
+    console.error("Usage: node scripts/fetch-census.mjs <cityId | all>");
+    process.exit(1);
   }
 
-  // Stats
-  const densities = blockGroups.map((b) => b.density).sort((a, b) => a - b);
-  const median = densities[Math.floor(densities.length / 2)];
-  const totalPop = blockGroups.reduce((s, b) => s + b.population, 0);
+  const registry = loadRegistry();
+  const targets =
+    arg === "all" ? registry : registry.filter((c) => c.id === arg);
 
-  console.log(`
-Results
-  Block groups: ${blockGroups.length}  (skipped ${skipped} with no match or zero area)
-  Total population: ${totalPop.toLocaleString()}
-  Density — min: ${densities[0]}  median: ${median}  max: ${densities.at(-1)} people/km²`);
+  if (targets.length === 0) {
+    console.error(
+      `No matching cities. Known ids:\n  ${registry.map((c) => c.id).join(", ")}`
+    );
+    process.exit(1);
+  }
 
-  const outPath = join(ROOT, "lib/cities/boston-census-data.json");
-  writeFileSync(outPath, JSON.stringify({ blockGroups }, null, 2));
-  console.log(`\n✓ Written to lib/cities/boston-census-data.json`);
+  for (const city of targets) {
+    try {
+      await fetchCity(city, key);
+    } catch (err) {
+      console.error(`\n✗ ${city.id}: ${err.message}`);
+      // Continue with the next city rather than aborting the whole batch.
+    }
+  }
 }
 
 main().catch((err) => {
-  console.error("\n✗ Error:", err.message);
+  console.error("\n✗", err.stack ?? err.message);
   process.exit(1);
 });

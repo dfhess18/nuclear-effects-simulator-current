@@ -117,6 +117,7 @@ export default function Map({
   hobM = 0,
   initialZoom = 12,
   cityMarkers,
+  flyTo,
   onMapClick,
   onGroundZeroDrag,
   onCitySelect,
@@ -260,6 +261,20 @@ export default function Map({
       mapRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fly-to (city switching) ───────────────────────────────────────────────
+  // Whenever the parent passes a new flyTo center (active city changed via
+  // dropdown or marker click), animate the camera there. flyTo() is a no-op
+  // if the target equals the current centre, so this is safe on every render.
+  useEffect(() => {
+    if (!flyTo || !mapRef.current) return;
+    mapRef.current.flyTo({
+      center: [flyTo.lng, flyTo.lat],
+      zoom: 12,
+      duration: 1400,
+      essential: true,
+    });
+  }, [flyTo?.lat, flyTo?.lng]);
 
   // ── Style switching ───────────────────────────────────────────────────────
   // Skip the first render: map is already initialised with STYLES.light.url.

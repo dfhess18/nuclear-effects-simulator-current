@@ -10,14 +10,15 @@ import { computeThermalRings } from "./thermal";
 import { computeRadiationRings } from "./radiation";
 import type { WeaponSpec, Conditions, EffectRing, EffectsResult } from "./types";
 import { computeCasualties } from "../casualties/model";
-import { bostonPopulation } from "../cities/boston";
+import type { PopulationSource } from "../casualties/types";
 
 export { optimalHobM } from "./blast";
 export type { WeaponSpec, Conditions, EffectRing, EffectsResult } from "./types";
 
 export function computeEffects(
   weapon: WeaponSpec,
-  conditions: Conditions
+  conditions: Conditions,
+  populationSource: PopulationSource
 ): EffectsResult {
   const blastRings = computeBlastRings(weapon);
   const thermalRings = computeThermalRings(weapon, conditions.weather);
@@ -63,7 +64,7 @@ export function computeEffects(
     thermalRings,
     conditions.groundZero,
     conditions.timeOfDay,
-    bostonPopulation
+    populationSource
   );
 
   return { rings, casualties };

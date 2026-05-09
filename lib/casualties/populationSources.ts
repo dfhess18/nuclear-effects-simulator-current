@@ -57,32 +57,73 @@ interface BlockGroupRecord {
   density: number; // people/km²
 }
 
+/**
+ * Generic Census block-group population model with a precomputed nearest-
+ * centroid spatial grid for O(1) lookups. Grid bounds are derived from the
+ * input data so the same class works for any city — no hardcoded geography.
+ *
+ * Construction cost (one-off): roughly grid_cells × block_groups comparisons.
+ * For a typical mid-size city (~1500 block groups, ~6000 cells) that's ~9M
+ * ops — under ~30 ms on modern hardware. Lazy-build per city to avoid paying
+ * for cities the user never selects.
+ */
 export class CensusBlockGroupModel implements PopulationSource {
-  // Pre-computed spatial grid for O(1) lookups.
-  // Grid covers Suffolk County with a buffer; points outside fall back to a
-  // suburban density matching the zone model's outer ring.
   private readonly grid: Float32Array;
-  private readonly LAT_MIN = 42.20;
-  private readonly LNG_MIN = -71.22;
-  private readonly STEP = 0.005; // ~0.55 km per cell
-  private readonly N_LAT = 52;   // 42.20 → 42.46
-  private readonly N_LNG = 58;   // -71.22 → -70.93
-  // Cells more than ~11 km from any centroid get suburban fallback density
-  private readonly FAR_SQ = 0.1 * 0.1;
-  private readonly SUBURBAN = 1500; // people/km²
+  private readonly latMin: number;
+  private readonly lngMin: number;
+  private readonly step: number;
+  private readonly nLat: number;
+  private readonly nLng: number;
+  /** Squared great-circle threshold (in degrees²) for "no centroid nearby". */
+  private readonly farSq: number;
+  /** Fallback density when the grid cell is far from any centroid. */
+  private readonly suburbanDensity: number;
 
-  constructor(blockGroups: BlockGroupRecord[]) {
-    this.grid = new Float32Array(this.N_LAT * this.N_LNG).fill(this.SUBURBAN);
-    if (blockGroups.length === 0) return;
+  constructor(blockGroups: BlockGroupRecord[], suburbanDensity = 1500) {
+    this.suburbanDensity = suburbanDensity;
+    // Far-cell threshold: cells whose nearest centroid is > ~0.1° away
+    // (≈ 11 km) fall back to suburban. Squared because we compare in
+    // squared-degree distance.
+    this.farSq = 0.1 * 0.1;
+    // Grid resolution: ~0.005° per cell ≈ 550 m latitude, scales with cos(lat)
+    // for longitude. Fine enough for casualty integration which uses 500 m steps.
+    this.step = 0.005;
 
-    // For each grid cell, find the nearest block group centroid.
-    // One-time cost: ~3000 cells × 680 block groups ≈ 2M comparisons (<10ms).
-    for (let r = 0; r < this.N_LAT; r++) {
-      const lat = this.LAT_MIN + (r + 0.5) * this.STEP;
-      for (let c = 0; c < this.N_LNG; c++) {
-        const lng = this.LNG_MIN + (c + 0.5) * this.STEP;
+    if (blockGroups.length === 0) {
+      // Default to a tiny grid centred at (0,0); every getDensityAt call will
+      // miss the bounds and return suburbanDensity.
+      this.latMin = 0;
+      this.lngMin = 0;
+      this.nLat = 1;
+      this.nLng = 1;
+      this.grid = new Float32Array([this.suburbanDensity]);
+      return;
+    }
+
+    // Derive bounds from the data. Add a buffer of ~0.05° (≈ 5 km) so points
+    // just outside the extreme centroids still get a real-data lookup.
+    let latMin = Infinity, latMax = -Infinity;
+    let lngMin = Infinity, lngMax = -Infinity;
+    for (const bg of blockGroups) {
+      if (bg.lat < latMin) latMin = bg.lat;
+      if (bg.lat > latMax) latMax = bg.lat;
+      if (bg.lng < lngMin) lngMin = bg.lng;
+      if (bg.lng > lngMax) lngMax = bg.lng;
+    }
+    const buffer = 0.05;
+    this.latMin = latMin - buffer;
+    this.lngMin = lngMin - buffer;
+    this.nLat = Math.ceil((latMax + buffer - this.latMin) / this.step);
+    this.nLng = Math.ceil((lngMax + buffer - this.lngMin) / this.step);
+
+    this.grid = new Float32Array(this.nLat * this.nLng).fill(this.suburbanDensity);
+
+    for (let r = 0; r < this.nLat; r++) {
+      const lat = this.latMin + (r + 0.5) * this.step;
+      for (let c = 0; c < this.nLng; c++) {
+        const lng = this.lngMin + (c + 0.5) * this.step;
         let minDist = Infinity;
-        let nearestDensity = this.SUBURBAN;
+        let nearestDensity = this.suburbanDensity;
         for (const bg of blockGroups) {
           const dLat = lat - bg.lat;
           const dLng = lng - bg.lng;
@@ -92,16 +133,18 @@ export class CensusBlockGroupModel implements PopulationSource {
             nearestDensity = bg.density;
           }
         }
-        this.grid[r * this.N_LNG + c] =
-          minDist <= this.FAR_SQ ? nearestDensity : this.SUBURBAN;
+        this.grid[r * this.nLng + c] =
+          minDist <= this.farSq ? nearestDensity : this.suburbanDensity;
       }
     }
   }
 
   getDensityAt(lat: number, lng: number): number {
-    const r = Math.floor((lat - this.LAT_MIN) / this.STEP);
-    const c = Math.floor((lng - this.LNG_MIN) / this.STEP);
-    if (r < 0 || r >= this.N_LAT || c < 0 || c >= this.N_LNG) return this.SUBURBAN;
-    return this.grid[r * this.N_LNG + c];
+    const r = Math.floor((lat - this.latMin) / this.step);
+    const c = Math.floor((lng - this.lngMin) / this.step);
+    if (r < 0 || r >= this.nLat || c < 0 || c >= this.nLng) {
+      return this.suburbanDensity;
+    }
+    return this.grid[r * this.nLng + c];
   }
 }
