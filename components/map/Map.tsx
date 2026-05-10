@@ -283,10 +283,11 @@ export default function Map({
     mapRef.current.flyTo({
       center: [flyTo.lng, flyTo.lat],
       zoom: flyTo.zoom ?? 12,
+      ...(flyTo.pitch !== undefined && { pitch: flyTo.pitch }),
       duration: 1400,
       essential: true,
     });
-  }, [flyTo?.lat, flyTo?.lng, flyTo?.zoom, flyTo?.nonce]);
+  }, [flyTo?.lat, flyTo?.lng, flyTo?.zoom, flyTo?.pitch, flyTo?.nonce]);
 
   // ── Style switching ───────────────────────────────────────────────────────
   // Skip the first render: map is already initialised with STYLES.light.url.
