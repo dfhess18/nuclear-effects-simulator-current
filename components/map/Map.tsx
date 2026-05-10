@@ -273,11 +273,11 @@ export default function Map({
     if (!flyTo || !mapRef.current) return;
     mapRef.current.flyTo({
       center: [flyTo.lng, flyTo.lat],
-      zoom: 12,
+      zoom: flyTo.zoom ?? 12,
       duration: 1400,
       essential: true,
     });
-  }, [flyTo?.lat, flyTo?.lng]);
+  }, [flyTo?.lat, flyTo?.lng, flyTo?.zoom]);
 
   // ── Style switching ───────────────────────────────────────────────────────
   // Skip the first render: map is already initialised with STYLES.light.url.

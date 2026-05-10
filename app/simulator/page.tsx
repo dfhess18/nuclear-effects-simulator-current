@@ -80,7 +80,7 @@ export default function SimulatorPage() {
   // Only set when the user actively picks a city (dropdown / marker click).
   // The Map flies to it on change; on initial mount it's undefined so the
   // map stays at the country-level overview the user expects.
-  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number } | undefined>();
+  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number; zoom?: number } | undefined>();
 
   const activeYieldKt = useCustomYield ? customYieldKt : preset.yieldKt;
 
@@ -149,6 +149,16 @@ export default function SimulatorPage() {
           <p className="text-sm text-slate-500 dark:text-zinc-400">MIT Laboratory for Nuclear Science</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setGroundZero(null);
+              setFlyToTarget({ ...US_CENTER, zoom: 4 });
+            }}
+            className="text-xs px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            title="Reset map to full US view and clear ground zero"
+          >
+            Reset view
+          </button>
           <ThemeToggle />
           <a
             href="/"
