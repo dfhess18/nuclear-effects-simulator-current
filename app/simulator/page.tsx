@@ -58,14 +58,19 @@ export default function SimulatorPage() {
   // and is replaced once the Census data finishes loading.
   const [populationSource, setPopulationSource] =
     useState<PopulationSource>(bostonZoneModel);
+  const [populationLoading, setPopulationLoading] = useState(false);
 
   // Track the current load token so a slow load for City A doesn't clobber
   // the state after the user has already switched to City B.
   const loadTokenRef = useRef(0);
   useEffect(() => {
     const token = ++loadTokenRef.current;
+    setPopulationLoading(true);
     loadCityPopulation(cityId).then((src) => {
-      if (loadTokenRef.current === token) setPopulationSource(src);
+      if (loadTokenRef.current === token) {
+        setPopulationSource(src);
+        setPopulationLoading(false);
+      }
     });
   }, [cityId]);
 
@@ -215,6 +220,7 @@ export default function SimulatorPage() {
             casualties={results?.casualties ?? null}
             groundZeroPlaced={groundZero !== null}
             yieldKt={activeYieldKt}
+            populationLoading={populationLoading}
           />
         </div>
       </div>

@@ -9,6 +9,7 @@ interface ResultsPanelProps {
   casualties: CasualtyEstimate | null;
   groundZeroPlaced: boolean;
   yieldKt: number;
+  populationLoading?: boolean;
 }
 
 function fmt(n: number): string {
@@ -21,6 +22,7 @@ export function ResultsPanel({
   casualties,
   groundZeroPlaced,
   yieldKt,
+  populationLoading = false,
 }: ResultsPanelProps) {
   if (!groundZeroPlaced) {
     return (
@@ -32,7 +34,9 @@ export function ResultsPanel({
     );
   }
 
-  if (!casualties) return null;
+  if (!casualties && !populationLoading) return null;
+
+  const dash = "—";
 
   return (
     <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -49,22 +53,22 @@ export function ResultsPanel({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <StatCard
             label="Fatalities"
-            value={fmt(casualties.fatalities)}
+            value={populationLoading ? dash : fmt(casualties!.fatalities)}
             accent="text-slate-900 dark:text-zinc-100"
           />
           <StatCard
             label="Blast injuries"
-            value={fmt(casualties.injuriesBlast)}
+            value={populationLoading ? dash : fmt(casualties!.injuriesBlast)}
             accent="text-purple-700 dark:text-purple-400"
           />
           <StatCard
             label="Burn injuries"
-            value={fmt(casualties.injuriesBurns)}
+            value={populationLoading ? dash : fmt(casualties!.injuriesBurns)}
             accent="text-amber-700 dark:text-amber-400"
           />
           <StatCard
             label="Affected area"
-            value={`${casualties.affectedAreaKm2.toLocaleString()} km²`}
+            value={populationLoading ? dash : `${casualties!.affectedAreaKm2.toLocaleString()} km²`}
             accent="text-slate-600 dark:text-zinc-400"
           />
         </div>
@@ -72,7 +76,7 @@ export function ResultsPanel({
         <Separator className="mb-3" />
 
         <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
-          {casualties.narrative}
+          {populationLoading ? "Loading population data…" : casualties!.narrative}
         </p>
 
         <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2">
