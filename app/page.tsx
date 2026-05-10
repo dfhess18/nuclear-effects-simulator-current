@@ -28,7 +28,7 @@ export default function HomePage() {
             Open Simulator
           </Link>
           <span className="text-xs text-slate-500 dark:text-zinc-500">
-            Top 20 US cities + Boston — switch via the in-app dropdown
+            Featuring 21 US cities — switch via the in-app dropdown
           </span>
         </div>
 
