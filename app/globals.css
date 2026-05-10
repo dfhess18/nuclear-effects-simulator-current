@@ -133,3 +133,25 @@
 .effect-ring {
   transition: r 400ms ease-out, fill-opacity 400ms ease-out;
 }
+
+/* Scrollbar theming — light and dark mode */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: oklch(0.75 0 0 / 50%);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: oklch(0.6 0 0 / 70%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: oklch(0.4 0 0 / 60%);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: oklch(0.55 0 0 / 80%);
+}
