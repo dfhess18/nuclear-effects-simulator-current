@@ -324,3 +324,15 @@ export const DEFAULT_CITY_ID = "boston";
 export function findCity(id: string): CityEntry | undefined {
   return CITIES.find((c) => c.id === id);
 }
+
+export function findNearestCity(lat: number, lng: number): CityEntry {
+  let nearest = CITIES[0];
+  let minDist = Infinity;
+  for (const c of CITIES) {
+    const dLat = lat - c.defaultCenter.lat;
+    const dLng = lng - c.defaultCenter.lng;
+    const d = dLat * dLat + dLng * dLng;
+    if (d < minDist) { minDist = d; nearest = c; }
+  }
+  return nearest;
+}

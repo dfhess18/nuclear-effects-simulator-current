@@ -20,7 +20,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { InputsPanel } from "@/components/panels/InputsPanel";
 import { ResultsPanel } from "@/components/panels/ResultsPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { CITIES, DEFAULT_CITY_ID, findCity } from "@/lib/cities/registry";
+import { CITIES, DEFAULT_CITY_ID, findCity, findNearestCity } from "@/lib/cities/registry";
 import { loadCityPopulation } from "@/lib/cities/loadPopulation";
 import { bostonZoneModel } from "@/lib/casualties/populationSources";
 import { DEFAULT_PRESET } from "@/lib/weapons/presets";
@@ -113,6 +113,8 @@ export default function SimulatorPage() {
 
   const handleGroundZeroMove = useCallback((lat: number, lng: number) => {
     setGroundZero({ lat, lng });
+    const nearest = findNearestCity(lat, lng);
+    setCityId((prev) => (nearest.id !== prev ? nearest.id : prev));
   }, []);
 
   // Dropdown selection: switch city, fly to it, drop GZ on its default.
