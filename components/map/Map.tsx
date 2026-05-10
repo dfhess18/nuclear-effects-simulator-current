@@ -256,7 +256,16 @@ export default function Map({
     });
 
     mapRef.current = map;
+
+    // Mapbox doesn't observe container size changes automatically. A
+    // ResizeObserver here calls map.resize() whenever the flex layout shifts
+    // (e.g. ResultsPanel collapsing after ground zero is cleared), preventing
+    // the black-canvas artifact.
+    const ro = new ResizeObserver(() => map.resize());
+    ro.observe(containerRef.current!);
+
     return () => {
+      ro.disconnect();
       map.remove();
       mapRef.current = null;
     };
