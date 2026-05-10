@@ -157,7 +157,7 @@ export default function SimulatorPage() {
           <button
             onClick={() => {
               setGroundZero(null);
-              setFlyToTarget({ ...US_CENTER, zoom: 4 });
+              setFlyToTarget({ ...US_CENTER, zoom: 4, nonce: Date.now() });
             }}
             className="text-xs px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
             title="Reset map to full US view and clear ground zero"

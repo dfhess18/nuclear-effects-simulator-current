@@ -286,7 +286,7 @@ export default function Map({
       duration: 1400,
       essential: true,
     });
-  }, [flyTo?.lat, flyTo?.lng, flyTo?.zoom]);
+  }, [flyTo?.lat, flyTo?.lng, flyTo?.zoom, flyTo?.nonce]);
 
   // ── Style switching ───────────────────────────────────────────────────────
   // Skip the first render: map is already initialised with STYLES.light.url.
