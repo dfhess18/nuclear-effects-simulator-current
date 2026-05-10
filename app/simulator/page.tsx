@@ -58,18 +58,20 @@ export default function SimulatorPage() {
   // and is replaced once the Census data finishes loading.
   const [populationSource, setPopulationSource] =
     useState<PopulationSource>(bostonZoneModel);
-  const [populationLoading, setPopulationLoading] = useState(false);
+  // Only true when the city was auto-switched by a GZ drag (not dropdown).
+  // Dropdown switches are already smooth; dashes are only needed for the
+  // auto-switch case where the user may not expect a city change.
+  const [gzSwitchLoading, setGzSwitchLoading] = useState(false);
 
   // Track the current load token so a slow load for City A doesn't clobber
   // the state after the user has already switched to City B.
   const loadTokenRef = useRef(0);
   useEffect(() => {
     const token = ++loadTokenRef.current;
-    setPopulationLoading(true);
     loadCityPopulation(cityId).then((src) => {
       if (loadTokenRef.current === token) {
         setPopulationSource(src);
-        setPopulationLoading(false);
+        setGzSwitchLoading(false);
       }
     });
   }, [cityId]);
@@ -119,7 +121,13 @@ export default function SimulatorPage() {
   const handleGroundZeroMove = useCallback((lat: number, lng: number) => {
     setGroundZero({ lat, lng });
     const nearest = findNearestCity(lat, lng);
-    setCityId((prev) => (nearest.id !== prev ? nearest.id : prev));
+    setCityId((prev) => {
+      if (nearest.id !== prev) {
+        setGzSwitchLoading(true);
+        return nearest.id;
+      }
+      return prev;
+    });
   }, []);
 
   // Dropdown selection: switch city, fly to it, drop GZ on its default.
@@ -220,7 +228,7 @@ export default function SimulatorPage() {
             casualties={results?.casualties ?? null}
             groundZeroPlaced={groundZero !== null}
             yieldKt={activeYieldKt}
-            populationLoading={populationLoading}
+            populationLoading={gzSwitchLoading}
           />
         </div>
       </div>
