@@ -58,9 +58,11 @@ export default function SimulatorPage() {
   // and is replaced once the Census data finishes loading.
   const [populationSource, setPopulationSource] =
     useState<PopulationSource>(bostonZoneModel);
+  // Tracks which city the current populationSource actually covers.
+  // Results are suppressed when this doesn't match cityId so stale
+  // numbers from the previous city never flash.
+  const [sourceCityId, setSourceCityId] = useState<string>(DEFAULT_CITY_ID);
   // Only true when the city was auto-switched by a GZ drag (not dropdown).
-  // Dropdown switches are already smooth; dashes are only needed for the
-  // auto-switch case where the user may not expect a city change.
   const [gzSwitchLoading, setGzSwitchLoading] = useState(false);
 
   // Track the current load token so a slow load for City A doesn't clobber
@@ -71,6 +73,7 @@ export default function SimulatorPage() {
     loadCityPopulation(cityId).then((src) => {
       if (loadTokenRef.current === token) {
         setPopulationSource(src);
+        setSourceCityId(cityId);
         setGzSwitchLoading(false);
       }
     });
@@ -143,12 +146,15 @@ export default function SimulatorPage() {
 
   const results = useMemo(() => {
     if (!groundZero) return null;
+    // Suppress results while the population source is still for the wrong city
+    // so stale casualty numbers never flash during a city switch.
+    if (sourceCityId !== cityId) return null;
     return computeEffects(
       { yieldKt: activeYieldKt, burstType, hobM },
       { groundZero, timeOfDay, weather },
       populationSource
     );
-  }, [activeYieldKt, burstType, hobM, groundZero, timeOfDay, weather, populationSource]);
+  }, [activeYieldKt, burstType, hobM, groundZero, timeOfDay, weather, populationSource, sourceCityId, cityId]);
 
   // The Map component is mounted once; we drive its camera via flyToCenter
   // changes (a new key triggers a re-fly). Use the active city's center.
