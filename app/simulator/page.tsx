@@ -90,7 +90,7 @@ export default function SimulatorPage() {
   // Only set when the user actively picks a city (dropdown / marker click).
   // The Map flies to it on change; on initial mount it's undefined so the
   // map stays at the country-level overview the user expects.
-  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number; zoom?: number } | undefined>();
+  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number; zoom?: number; pitch?: number; nonce?: number } | undefined>();
 
   const activeYieldKt = useCustomYield ? customYieldKt : preset.yieldKt;
 
