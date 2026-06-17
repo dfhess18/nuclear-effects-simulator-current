@@ -24,8 +24,10 @@ function projectCity(lat: number, lng: number, R: number) {
   const z =
     Math.sin(LAT0_RAD) * Math.sin(latR) +
     Math.cos(LAT0_RAD) * Math.cos(latR) * Math.cos(dlng);
-  // SVG y-axis points down — negate so north renders up
-  return { x, y: -y, visible: z > 0 };
+  // Round to 4 decimal places so server and client produce identical values,
+  // preventing floating-point hydration mismatches.
+  const round = (n: number) => Math.round(n * 10000) / 10000;
+  return { x: round(x), y: round(-y), visible: z > 0 };
 }
 
 export default function HomePage() {
