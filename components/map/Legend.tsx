@@ -13,6 +13,10 @@ const CATEGORY_LABELS = {
   radiation: "Prompt radiation",
 };
 
+// Shared easing/duration so the legend matches the ResultsPanel transition.
+const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
+const DUR = 450;
+
 export function Legend({ rings }: LegendProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -46,39 +50,56 @@ export function Legend({ rings }: LegendProps) {
           height="12"
           viewBox="0 0 12 12"
           fill="none"
-          className={`text-slate-500 dark:text-zinc-400 transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+          className={`text-slate-500 dark:text-zinc-400 transition-transform ${collapsed ? "rotate-180" : ""}`}
+          style={{ transitionDuration: `${DUR}ms`, transitionTimingFunction: EASE }}
           aria-hidden="true"
         >
           <path d="M2 4.5L6 8.5L10 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
-      {!collapsed && (
-        <div className="px-3 pb-3">
-          {categories.map((cat) => (
-            <div key={cat} className="mb-2 last:mb-0">
-              <p className="font-medium text-slate-600 dark:text-zinc-400 mb-1">
-                {CATEGORY_LABELS[cat]}
-              </p>
-              {byCategory[cat]
-                .sort((a, b) => b.radiusM - a.radiusM)
-                .map((ring) => (
-                  <div
-                    key={ring.thresholdLabel}
-                    className="flex items-center gap-2 mb-0.5"
-                  >
-                    <span
-                      className="inline-block w-3 h-3 rounded-sm border border-black/10 flex-shrink-0"
-                      style={{ backgroundColor: ring.color }}
-                      aria-hidden="true"
-                    />
-                    <span className="text-slate-700 dark:text-zinc-300">{ring.thresholdLabel}</span>
-                  </div>
-                ))}
-            </div>
-          ))}
+      {/* Smooth reveal via grid 0fr->1fr height-to-auto, matching ResultsPanel. */}
+      <div
+        className="grid"
+        style={{
+          gridTemplateRows: collapsed ? "0fr" : "1fr",
+          transition: `grid-template-rows ${DUR}ms ${EASE}`,
+        }}
+      >
+        <div className="overflow-hidden">
+          <div
+            className="px-3 pb-3"
+            style={{
+              opacity: collapsed ? 0 : 1,
+              transition: `opacity ${DUR}ms ${EASE}`,
+              transitionDelay: collapsed ? "0ms" : "80ms",
+            }}
+          >
+            {categories.map((cat) => (
+              <div key={cat} className="mb-2 last:mb-0">
+                <p className="font-medium text-slate-600 dark:text-zinc-400 mb-1">
+                  {CATEGORY_LABELS[cat]}
+                </p>
+                {byCategory[cat]
+                  .sort((a, b) => b.radiusM - a.radiusM)
+                  .map((ring) => (
+                    <div
+                      key={ring.thresholdLabel}
+                      className="flex items-center gap-2 mb-0.5"
+                    >
+                      <span
+                        className="inline-block w-3 h-3 rounded-sm border border-black/10 flex-shrink-0"
+                        style={{ backgroundColor: ring.color }}
+                        aria-hidden="true"
+                      />
+                      <span className="text-slate-700 dark:text-zinc-300">{ring.thresholdLabel}</span>
+                    </div>
+                  ))}
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

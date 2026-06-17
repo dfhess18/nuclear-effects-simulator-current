@@ -258,13 +258,22 @@ export default function Map({
     mapRef.current = map;
 
     // Mapbox doesn't observe container size changes automatically. A
-    // ResizeObserver here calls map.resize() whenever the flex layout shifts
-    // (e.g. ResultsPanel collapsing after ground zero is cleared), preventing
-    // the black-canvas artifact.
-    const ro = new ResizeObserver(() => map.resize());
+    // ResizeObserver calls map.resize() when the flex layout shifts (e.g. the
+    // ResultsPanel expanding/collapsing). We DEBOUNCE it: calling resize() on
+    // every frame of the panel's height transition makes Mapbox repaint each
+    // frame, flashing the container background. Instead we resize once ~140ms
+    // after the size settles. During the transition the canvas is simply
+    // clipped (on expand) or briefly shows the map-colored background (on
+    // collapse), then snaps to the final size in a single, flash-free repaint.
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => map.resize(), 140);
+    });
     ro.observe(containerRef.current!);
 
     return () => {
+      clearTimeout(resizeTimer);
       ro.disconnect();
       map.remove();
       mapRef.current = null;
