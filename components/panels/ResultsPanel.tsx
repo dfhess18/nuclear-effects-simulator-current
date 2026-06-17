@@ -92,7 +92,7 @@ export function ResultsPanel({
           viewBox="0 0 12 12"
           fill="none"
           className={`ml-auto shrink-0 text-slate-400 dark:text-zinc-500 transition-transform ${
-            expanded ? "rotate-180" : ""
+            expanded ? "" : "rotate-180"
           }`}
           style={{ transitionDuration: `${DUR}ms`, transitionTimingFunction: EASE }}
           aria-hidden="true"

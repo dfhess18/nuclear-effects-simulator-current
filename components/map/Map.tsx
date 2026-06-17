@@ -463,9 +463,15 @@ export default function Map({
     };
   }, [cityMarkers]);
 
+  // Background that approximates each Mapbox style's land color. The map
+  // container shows this underneath the GL canvas, so when the panel
+  // expand/collapse resizes the map the newly-exposed strip shows this color
+  // for the frame before Mapbox repaints — preventing a black flash.
+  const mapBg = styleId === "dark" ? "#1a1a1a" : "#e8e6e1";
+
   return (
-    <div className="relative w-full h-full">
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+    <div className="relative w-full h-full" style={{ background: mapBg }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%", background: mapBg }} />
 
       {/* Style switcher */}
       <div className="absolute top-2 right-2 z-10 flex rounded-md overflow-hidden border border-slate-300 dark:border-zinc-600 shadow-sm">
