@@ -18,6 +18,10 @@ function fmt(n: number): string {
   return n.toLocaleString();
 }
 
+// Shared easing/duration so every animated property moves together.
+const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
+const DUR = 450;
+
 export function ResultsPanel({
   casualties,
   groundZeroPlaced,
@@ -67,52 +71,30 @@ export function ResultsPanel({
 
   return (
     <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-      {/* Header bar — always the TOP element, so as the panel grows upward the
-          "Estimated effects" label rides the top edge. Acts as the toggle. */}
+      {/* Header — always the top row. Acts as the toggle. */}
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-center gap-x-6 gap-y-1 flex-wrap px-6 py-2.5 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left"
+        className="w-full flex items-center gap-2 px-6 pt-2.5 pb-1 text-left"
         aria-expanded={expanded}
       >
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
-            Estimated effects
-          </span>
-          <Badge
-            variant="outline"
-            className="text-[10px] font-normal text-slate-500 dark:text-zinc-400 px-1.5 py-0"
-          >
-            {yieldKt >= 1000 ? `${yieldKt / 1000} Mt` : `${yieldKt} kt`}
-          </Badge>
-        </div>
-
-        {/* Inline metrics — shown collapsed, fade out as the cards take over.
-            They keep their layout space so the header row doesn't reflow. */}
-        <div
-          className={`flex items-center gap-x-6 gap-y-1 flex-wrap transition-opacity duration-200 ${
-            expanded ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
+        <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+          Estimated effects
+        </span>
+        <Badge
+          variant="outline"
+          className="text-[10px] font-normal text-slate-500 dark:text-zinc-400 px-1.5 py-0"
         >
-          {stats.map((s) => (
-            <div key={s.label} className="flex items-baseline gap-1.5 shrink-0">
-              <span className="text-[11px] text-slate-500 dark:text-zinc-500 uppercase tracking-wide">
-                {s.label}:
-              </span>
-              <span className={`text-sm font-semibold tabular-nums ${s.accent}`}>
-                {s.value}
-              </span>
-            </div>
-          ))}
-        </div>
-
+          {yieldKt >= 1000 ? `${yieldKt / 1000} Mt` : `${yieldKt} kt`}
+        </Badge>
         <svg
           width="12"
           height="12"
           viewBox="0 0 12 12"
           fill="none"
-          className={`ml-auto shrink-0 text-slate-400 dark:text-zinc-500 transition-transform duration-300 ${
+          className={`ml-auto shrink-0 text-slate-400 dark:text-zinc-500 transition-transform ${
             expanded ? "rotate-180" : ""
           }`}
+          style={{ transitionDuration: `${DUR}ms`, transitionTimingFunction: EASE }}
           aria-hidden="true"
         >
           <path
@@ -125,56 +107,80 @@ export function ResultsPanel({
         </svg>
       </button>
 
-      {/* Detail region — grows downward from the header via the grid 0fr→1fr
-          height-to-auto trick. The map's ResizeObserver keeps the GL canvas
-          synced as this animates, so the map resizes smoothly. */}
+      {/* Stats — a fixed 4-column grid directly under the header. Each cell
+          grows in place (font + padding + bubble), so the numbers stay the
+          same elements and just enlarge. Because every size change is a real
+          CSS transition, the panel's real height animates continuously and the
+          map resizes smoothly (no snap). */}
       <div
-        className={`grid transition-[grid-template-rows] duration-[350ms] ease-out ${
-          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        }`}
+        className="px-6 pb-2.5 grid grid-cols-2 md:grid-cols-4"
+        style={{
+          columnGap: expanded ? "0.75rem" : "0.75rem",
+          rowGap: expanded ? "0.75rem" : "0.5rem",
+          transition: `gap ${DUR}ms ${EASE}`,
+        }}
+      >
+        {stats.map((s, i) => (
+          <div
+            key={s.label}
+            className="relative"
+            style={{
+              padding: expanded ? "0.625rem 0.75rem" : "0rem",
+              transition: `padding ${DUR}ms ${EASE}`,
+            }}
+          >
+            {/* Bubble — fades in behind the metric, staggered per cell. */}
+            <div
+              className="absolute inset-0 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60"
+              style={{
+                opacity: expanded ? 1 : 0,
+                transition: `opacity ${DUR}ms ${EASE}`,
+                transitionDelay: expanded ? `${i * 55}ms` : "0ms",
+              }}
+            />
+            <div className="relative flex flex-col">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide leading-tight">
+                {s.label}
+              </span>
+              <span
+                className={`font-semibold tabular-nums leading-tight ${s.accent}`}
+                style={{
+                  fontSize: expanded ? "1.25rem" : "0.875rem",
+                  marginTop: expanded ? "0.25rem" : "0rem",
+                  transition: `font-size ${DUR}ms ${EASE}, margin-top ${DUR}ms ${EASE}`,
+                }}
+              >
+                {s.value}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Narrative + disclaimer — revealed via the grid 0fr→1fr height-to-auto
+          trick so their appearance also animates the real height smoothly. */}
+      <div
+        className="grid px-6"
+        style={{
+          gridTemplateRows: expanded ? "1fr" : "0fr",
+          transition: `grid-template-rows ${DUR}ms ${EASE}`,
+        }}
       >
         <div className="overflow-hidden">
-          <div className="px-6 pb-4 pt-1">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              {stats.map((s, i) => (
-                <div
-                  key={s.label}
-                  // Bubble scales + fades in behind the metric, staggered per
-                  // card so they cascade in like scroll-resize site elements.
-                  className={`rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 px-3 py-2.5 origin-bottom transition-all duration-300 ease-out ${
-                    expanded
-                      ? "opacity-100 scale-100 translate-y-0"
-                      : "opacity-0 scale-[0.92] translate-y-1"
-                  }`}
-                  style={{ transitionDelay: expanded ? `${80 + i * 70}ms` : "0ms" }}
-                >
-                  <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
-                    {s.label}
-                  </p>
-                  <p className={`text-lg font-semibold tabular-nums ${s.accent}`}>
-                    {s.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
+          <div
+            style={{
+              opacity: expanded ? 1 : 0,
+              transition: `opacity ${DUR}ms ${EASE}`,
+              transitionDelay: expanded ? "120ms" : "0ms",
+            }}
+          >
             <Separator className="mb-3" />
-
-            <p
-              className={`text-sm text-slate-500 dark:text-zinc-400 leading-relaxed transition-opacity duration-300 ${
-                expanded ? "opacity-100 delay-[280ms]" : "opacity-0"
-              }`}
-            >
+            <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
               {populationLoading
                 ? "Loading population data…"
                 : casualties!.narrative}
             </p>
-
-            <p
-              className={`text-xs text-slate-400 dark:text-zinc-500 mt-2 transition-opacity duration-300 ${
-                expanded ? "opacity-100 delay-[320ms]" : "opacity-0"
-              }`}
-            >
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2 pb-4">
               All figures are rough estimates using a zone-based population
               density model. Actual casualties would depend on time of day,
               sheltering, building density, evacuation, and emergency response.
