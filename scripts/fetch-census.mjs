@@ -103,30 +103,45 @@ async function fetchTIGER(state, county) {
   const base =
     "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_ACS2022/MapServer/8/query";
 
-  const params = new URLSearchParams({
-    where: `STATE='${state}' AND COUNTY='${county}'`,
-    outFields: "GEOID,AREALAND",
-    returnGeometry: "true",
-    outSR: "4326",
-    f: "json",
-    resultRecordCount: "2000",
-  });
+  const allFeatures = [];
+  let offset = 0;
 
-  const res = await fetch(`${base}?${params}`);
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(
-      `TIGERweb state=${state} county=${county} ${res.status}: ${body.slice(0, 200)}`
-    );
+  // Paginate until the service reports no more records.
+  while (true) {
+    const params = new URLSearchParams({
+      where: `STATE='${state}' AND COUNTY='${county}'`,
+      outFields: "GEOID,AREALAND",
+      returnGeometry: "true",
+      outSR: "4326",
+      f: "json",
+      resultRecordCount: "2000",
+      resultOffset: String(offset),
+    });
+
+    const res = await fetch(`${base}?${params}`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(
+        `TIGERweb state=${state} county=${county} ${res.status}: ${body.slice(0, 200)}`
+      );
+    }
+
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(
+        `TIGERweb state=${state} county=${county} error: ${JSON.stringify(data.error)}`
+      );
+    }
+
+    const features = data.features ?? [];
+    allFeatures.push(...features);
+
+    if (!data.exceededTransferLimit || features.length === 0) break;
+    offset += features.length;
+    await sleep(100); // brief pause between pages
   }
 
-  const data = await res.json();
-  if (data.error) {
-    throw new Error(
-      `TIGERweb state=${state} county=${county} error: ${JSON.stringify(data.error)}`
-    );
-  }
-  return data.features ?? [];
+  return allFeatures;
 }
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
