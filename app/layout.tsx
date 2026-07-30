@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const geistSans = IBM_Plex_Sans({
@@ -39,7 +40,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.className} ${geistMono.variable} min-h-full flex flex-col`}>{children}</body>
+      <body className={`${geistSans.className} ${geistMono.variable} min-h-full flex flex-col`}>
+        {/* 250 ms delay — long enough that sweeping the cursor across the
+            legend or the metric row doesn't flash a trail of tooltips. */}
+        <TooltipProvider delay={250}>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

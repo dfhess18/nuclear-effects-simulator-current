@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CasualtyBreakdownChart } from "./CasualtyBreakdownChart";
 import type { CasualtyEstimate } from "@/lib/casualties/types";
 
 interface ResultsPanelProps {
@@ -42,30 +49,36 @@ export function ResultsPanel({
 
   if (!casualties && !populationLoading) return null;
 
-  const dash = "—";
-
   const stats = [
     {
       label: "Fatalities",
-      value: populationLoading ? dash : fmt(casualties!.fatalities),
+      value: populationLoading ? null : fmt(casualties!.fatalities),
       accent: "text-slate-900 dark:text-zinc-100",
+      description:
+        "Deaths from blast overpressure, structural collapse, and 3rd degree burns, summed over each effect ring and de-duplicated so nobody is counted twice.",
     },
     {
       label: "Blast injuries",
-      value: populationLoading ? dash : fmt(casualties!.injuriesBlast),
+      value: populationLoading ? null : fmt(casualties!.injuriesBlast),
       accent: "text-purple-700 dark:text-purple-400",
+      description:
+        "Non-fatal overpressure casualties — eardrum rupture, lung trauma, and lacerations from flying glass and debris.",
     },
     {
       label: "Burn injuries",
-      value: populationLoading ? dash : fmt(casualties!.injuriesBurns),
+      value: populationLoading ? null : fmt(casualties!.injuriesBurns),
       accent: "text-amber-700 dark:text-amber-400",
+      description:
+        "Non-fatal 1st and 2nd degree burns from the thermal pulse. Only counts people with line of sight to the fireball, so it scales with visibility.",
     },
     {
       label: "Affected area",
       value: populationLoading
-        ? dash
+        ? null
         : `${casualties!.affectedAreaKm2.toLocaleString()} km²`,
       accent: "text-slate-600 dark:text-zinc-400",
+      description:
+        "Ground area inside the outermost effect ring — the 1 psi overpressure contour, where window breakage begins.",
     },
   ];
 
@@ -139,26 +152,52 @@ export function ResultsPanel({
               }}
             />
             <div className="relative flex flex-col">
-              <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide leading-tight">
-                {s.label}
-              </span>
-              <span
-                className={`font-semibold tabular-nums leading-tight ${s.accent}`}
-                style={{
-                  fontSize: expanded ? "1.25rem" : "0.875rem",
-                  marginTop: expanded ? "0.25rem" : "0rem",
-                  transition: `font-size ${DUR}ms ${EASE}, margin-top ${DUR}ms ${EASE}`,
-                }}
-              >
-                {s.value}
-              </span>
+              {/* The label carries the tooltip rather than the whole cell, so
+                  hovering the number itself doesn't obscure it with a popup. */}
+              <Tooltip>
+                <TooltipTrigger
+                  render={<span />}
+                  tabIndex={0}
+                  className="w-fit text-[11px] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide leading-tight cursor-help decoration-dotted decoration-slate-300 dark:decoration-zinc-600 underline underline-offset-2 outline-none rounded focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-zinc-500"
+                >
+                  {s.label}
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  align="start"
+                  className="max-w-[280px] leading-snug"
+                >
+                  {s.description}
+                </TooltipContent>
+              </Tooltip>
+              {s.value === null ? (
+                <Skeleton
+                  className="mt-1 w-16"
+                  style={{
+                    height: expanded ? "1.5rem" : "1.0625rem",
+                    transition: `height ${DUR}ms ${EASE}`,
+                  }}
+                />
+              ) : (
+                <span
+                  className={`font-semibold tabular-nums leading-tight ${s.accent}`}
+                  style={{
+                    fontSize: expanded ? "1.25rem" : "0.875rem",
+                    marginTop: expanded ? "0.25rem" : "0rem",
+                    transition: `font-size ${DUR}ms ${EASE}, margin-top ${DUR}ms ${EASE}`,
+                  }}
+                >
+                  {s.value}
+                </span>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Narrative + disclaimer — revealed via the grid 0fr→1fr height-to-auto
-          trick so their appearance also animates the real height smoothly. */}
+      {/* Breakdown chart + narrative + disclaimer — revealed via the grid
+          0fr→1fr height-to-auto trick so their appearance also animates the
+          real height smoothly. */}
       <div
         className="grid px-6"
         style={{
@@ -175,11 +214,36 @@ export function ResultsPanel({
             }}
           >
             <Separator className="mb-3" />
-            <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
-              {populationLoading
-                ? "Loading population data…"
-                : casualties!.narrative}
+
+            <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide mb-2">
+              Casualty breakdown
             </p>
+            {casualties ? (
+              <CasualtyBreakdownChart casualties={casualties} />
+            ) : (
+              <div>
+                <Skeleton className="h-[26px] w-full rounded" />
+                <div className="flex gap-4 mt-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+            )}
+
+            <Separator className="my-3" />
+
+            {casualties ? (
+              <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
+                {casualties.narrative}
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-[92%]" />
+                <Skeleton className="h-3.5 w-[64%]" />
+              </div>
+            )}
             <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2 pb-4">
               All figures are rough estimates using a zone-based population
               density model. Actual casualties would depend on time of day,

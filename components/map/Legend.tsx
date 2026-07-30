@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
+import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { EffectRing } from "../../lib/physics/types";
 
 interface LegendProps {
@@ -16,6 +22,13 @@ const CATEGORY_LABELS = {
 // Shared easing/duration so the legend matches the ResultsPanel transition.
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 const DUR = 450;
+
+/** Rounded percent for display; sub-1% rates still read as "<1%" not "0%". */
+function ratePct(rate: number): string {
+  const pct = rate * 100;
+  if (pct > 0 && pct < 1) return "<1%";
+  return `${Math.round(pct)}%`;
+}
 
 export function Legend({ rings }: LegendProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -83,17 +96,59 @@ export function Legend({ rings }: LegendProps) {
                 {byCategory[cat]
                   .sort((a, b) => b.radiusM - a.radiusM)
                   .map((ring) => (
-                    <div
-                      key={ring.thresholdLabel}
-                      className="flex items-center gap-2 mb-0.5"
-                    >
-                      <span
-                        className="inline-block w-3 h-3 rounded-sm border border-black/10 flex-shrink-0"
-                        style={{ backgroundColor: ring.color }}
-                        aria-hidden="true"
-                      />
-                      <span className="text-slate-700 dark:text-zinc-300">{ring.thresholdLabel}</span>
-                    </div>
+                    <Tooltip key={ring.thresholdLabel}>
+                      {/* render={<div/>} because the row contains block-level
+                          content (the Progress track), which a <button> — the
+                          trigger's default element — may not legally wrap.
+                          tabIndex keeps the description keyboard-reachable. */}
+                      <TooltipTrigger
+                        render={<div />}
+                        tabIndex={0}
+                        className="w-full mb-1.5 last:mb-0 -mx-1 px-1 py-0.5 rounded cursor-help outline-none hover:bg-slate-100 dark:hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-zinc-500 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-block w-3 h-3 rounded-sm border border-black/10 flex-shrink-0"
+                            style={{ backgroundColor: ring.color }}
+                            aria-hidden="true"
+                          />
+                          <span className="text-slate-700 dark:text-zinc-300 truncate">
+                            {ring.thresholdLabel}
+                          </span>
+                          <span className="ml-auto text-[10px] tabular-nums text-slate-400 dark:text-zinc-500 flex-shrink-0">
+                            {ratePct(ring.casualtyRateInner)}
+                          </span>
+                        </div>
+                        {/* Severity bar — the inner fatality rate for this
+                            threshold. Coloured with the ring's own hex via a
+                            CSS var, since Tailwind can't generate a class from
+                            a runtime value. */}
+                        <Progress
+                          value={ring.casualtyRateInner * 100}
+                          aria-label={`${ring.thresholdLabel} fatality rate`}
+                          className="gap-0 mt-1 pl-5 [&_[data-slot=progress-track]]:h-[3px] [&_[data-slot=progress-indicator]]:bg-[var(--ring-color)]"
+                          style={
+                            { "--ring-color": ring.color } as CSSProperties
+                          }
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="left"
+                        align="center"
+                        className="max-w-[260px] flex-col items-start gap-1 py-2 text-left"
+                      >
+                        <span className="font-semibold">
+                          {ring.thresholdLabel}
+                        </span>
+                        <span className="opacity-80 leading-snug">
+                          {ring.physicalDescription}
+                        </span>
+                        <span className="opacity-60 tabular-nums">
+                          Ground radius {(ring.radiusM / 1000).toFixed(2)} km ·{" "}
+                          {ratePct(ring.casualtyRateInner)} fatality rate inside
+                        </span>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
               </div>
             ))}
