@@ -46,6 +46,13 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* MIT brand. `inline` matters here: it makes Tailwind emit var() at the use
+     site rather than resolving at theme-definition time, which is what lets
+     .dark override --brand-accent. */
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-accent: var(--brand-accent);
 }
 
 :root {
@@ -81,6 +88,17 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* MIT crimson. Kept as hex — getComputedStyle returns the oklch() tokens
+     above verbatim, and THREE.Color cannot parse oklch(), so any value the
+     WebGL layer might read has to stay hex.
+     --brand/-hover/-fg are FILLS and do not change between themes (the CTAs
+     are crimson-on-white in both). --brand-accent is text/hairlines/tints and
+     is the only one that flips. */
+  --brand: #a31f34;
+  --brand-hover: #8b1a2c;
+  --brand-fg: #ffffff;
+  --brand-accent: #a31f34;
 }
 
 .dark {
@@ -115,6 +133,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Only the accent flips — crimson is unreadable as text on #1a1a1a. */
+  --brand: #a31f34;
+  --brand-hover: #8b1a2c;
+  --brand-fg: #ffffff;
+  --brand-accent: #ff5a6f;
 }
 
 @layer base {
@@ -129,9 +153,17 @@
   }
 }
 
-/* Leaflet effect ring animation */
-.effect-ring {
-  transition: r 400ms ease-out, fill-opacity 400ms ease-out;
+/* Basemap backdrop, keyed off data-map-style on the map wrapper. Painted
+   behind the canvas so the debounced ResizeObserver -> map.resize() in
+   Map.tsx doesn't flash black on a dark style (or white on a light one). */
+[data-map-style="streets"] {
+  --map-bg: #e8e6e1;
+}
+[data-map-style="light"] {
+  --map-bg: #f0eeea;
+}
+[data-map-style="dark"] {
+  --map-bg: #1a1a1a;
 }
 
 /* Scrollbar theming — light and dark mode */

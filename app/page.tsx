@@ -49,7 +49,7 @@ export default function HomePage() {
           zooming ? "opacity-0" : "opacity-100"
         }`}
       >
-        <div className="text-xs font-medium tracking-widest uppercase text-[#A31F34] dark:text-[#FF5A6F]">
+        <div className="text-xs font-medium tracking-widest uppercase text-brand-accent">
           MIT Laboratory for Nuclear Science
         </div>
         <ThemeToggle />
@@ -63,7 +63,7 @@ export default function HomePage() {
             zooming ? "opacity-0 scale-95" : "opacity-100 scale-100"
           }`}
         >
-          <span className="inline-block text-[11px] font-semibold tracking-[0.2em] uppercase text-[#A31F34] dark:text-[#FF5A6F] border border-[#A31F34]/20 dark:border-[#FF5A6F]/20 bg-[#A31F34]/5 dark:bg-[#FF5A6F]/10 rounded-full px-3 py-1 mb-6">
+          <span className="inline-block text-[11px] font-semibold tracking-[0.2em] uppercase text-brand-accent border border-brand-accent/20 bg-brand-accent/5 dark:bg-brand-accent/10 rounded-full px-3 py-1 mb-6">
             Educational research tool
           </span>
 
@@ -82,7 +82,7 @@ export default function HomePage() {
           <button
             onClick={handleOpen}
             disabled={zooming}
-            className="group inline-flex items-center gap-2 rounded-full bg-[#A31F34] hover:bg-[#8B1A2C] text-white px-7 py-3.5 text-sm font-medium shadow-lg shadow-[#A31F34]/20 hover:shadow-xl transition-all disabled:cursor-default"
+            className="group inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-hover text-brand-fg px-7 py-3.5 text-sm font-medium shadow-lg shadow-brand/20 hover:shadow-xl transition-all disabled:cursor-default"
           >
             Open Simulator
             <svg
@@ -114,7 +114,7 @@ export default function HomePage() {
         </p>
         <Link
           href="/about"
-          className="group inline-flex items-center gap-1.5 text-xs font-medium text-[#A31F34] dark:text-[#FF5A6F] hover:underline"
+          className="group inline-flex items-center gap-1.5 text-xs font-medium text-brand-accent hover:underline"
         >
           About this project
           <svg
@@ -148,7 +148,7 @@ function Globe({ zooming }: { zooming: boolean }) {
   const R = 180;
   return (
     <div
-      className={`absolute inset-0 flex items-center justify-center pointer-events-none text-[#A31F34] dark:text-[#FF5A6F] origin-center transition-all duration-700 ease-in ${
+      className={`absolute inset-0 flex items-center justify-center pointer-events-none text-brand-accent origin-center transition-all duration-700 ease-in ${
         zooming ? "scale-[7] opacity-0" : "scale-100 opacity-100"
       }`}
       aria-hidden="true"

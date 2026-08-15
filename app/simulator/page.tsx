@@ -16,6 +16,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { InputsPanel } from "@/components/panels/InputsPanel";
 import { ResultsPanel } from "@/components/panels/ResultsPanel";
@@ -179,12 +180,12 @@ export default function SimulatorPage() {
             Reset view
           </button>
           <ThemeToggle />
-          <a
+          <Link
             href="/"
-            className="text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-slate-200 transition-colors"
+            className="text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors"
           >
             Home
-          </a>
+          </Link>
         </div>
       </header>
 

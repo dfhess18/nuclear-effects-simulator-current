@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { themeInitScript } from "@/lib/theme/themeScript";
 import "./globals.css";
 
 const geistSans = IBM_Plex_Sans({
@@ -33,12 +34,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        {/* Prevent flash of unstyled theme on load */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}`,
-          }}
-        />
+        {/* Prevent flash of unstyled theme on load. Shared with themeStore so
+            the script and the store can never drift on the resolution rule. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className={`${geistSans.className} ${geistMono.variable} min-h-full flex flex-col`}>
         {/* 250 ms delay — long enough that sweeping the cursor across the

@@ -7,7 +7,7 @@ export default function AboutPage() {
       <header className="border-b border-slate-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between">
         <Link
           href="/"
-          className="group inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-[#A31F34] dark:text-[#FF5A6F] hover:underline"
+          className="group inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-brand-accent hover:underline"
         >
           <svg
             width="12"
@@ -37,7 +37,7 @@ export default function AboutPage() {
         <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-[1.05] mb-5">
           Built on the physics of
           <br />
-          <span className="text-[#A31F34] dark:text-[#FF5A6F]">nuclear weapons</span>
+          <span className="text-brand-accent">nuclear weapons</span>
         </h1>
         <p className="text-base sm:text-lg text-slate-600 dark:text-zinc-400 leading-relaxed max-w-2xl mx-auto">
           All effect calculations follow Glasstone &amp; Dolan,{" "}
@@ -95,7 +95,7 @@ export default function AboutPage() {
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-6 sm:p-7">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-[#A31F34]" />
+              <div className="w-2 h-2 rounded-full bg-brand-accent" />
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
                 Modeled
               </h3>
@@ -156,7 +156,7 @@ export default function AboutPage() {
           </p>
           <Link
             href="/simulator"
-            className="inline-flex items-center gap-2 rounded-full bg-[#A31F34] hover:bg-[#8B1A2C] text-white px-6 py-3 text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-hover text-brand-fg px-6 py-3 text-sm font-medium transition-colors"
           >
             Open Simulator →
           </Link>
@@ -182,7 +182,7 @@ export default function AboutPage() {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div>
-      <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#A31F34] dark:text-[#FF5A6F]">
+      <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-brand-accent">
         {value}
       </div>
       <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-zinc-500 mt-1">
@@ -194,8 +194,8 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 function FeatureCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-6 hover:border-[#A31F34]/30 dark:hover:border-[#FF5A6F]/30 transition-colors">
-      <div className="text-[11px] font-semibold uppercase tracking-widest mb-2 text-[#A31F34] dark:text-[#FF5A6F]">
+    <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-6 hover:border-brand-accent/30 transition-colors">
+      <div className="text-[11px] font-semibold uppercase tracking-widest mb-2 text-brand-accent">
         {title}
       </div>
       <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -224,14 +224,14 @@ function WeaponCard({
   yield_: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-4 text-center hover:border-[#A31F34]/30 dark:hover:border-[#FF5A6F]/30 transition-colors">
+    <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-4 text-center hover:border-brand-accent/30 transition-colors">
       <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">
         {era}
       </div>
       <div className="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1">
         {name}
       </div>
-      <div className="text-xs text-[#A31F34] dark:text-[#FF5A6F] tabular-nums font-medium">
+      <div className="text-xs text-brand-accent tabular-nums font-medium">
         {yield_}
       </div>
     </div>
