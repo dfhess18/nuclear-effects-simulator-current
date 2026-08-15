@@ -7,6 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ratePct } from "./format";
 import type { EffectRing } from "../../lib/physics/types";
 
 interface LegendProps {
@@ -22,13 +23,6 @@ const CATEGORY_LABELS = {
 // Shared easing/duration so the legend matches the ResultsPanel transition.
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 const DUR = 450;
-
-/** Rounded percent for display; sub-1% rates still read as "<1%" not "0%". */
-function ratePct(rate: number): string {
-  const pct = rate * 100;
-  if (pct > 0 && pct < 1) return "<1%";
-  return `${Math.round(pct)}%`;
-}
 
 export function Legend({ rings }: LegendProps) {
   const [collapsed, setCollapsed] = useState(false);

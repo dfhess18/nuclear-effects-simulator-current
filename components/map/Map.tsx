@@ -11,22 +11,35 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import type { MapProps } from "./types";
+import type { MapProps, RingPopupData } from "./types";
 import type { EffectRing } from "../../lib/physics/types";
 import { Legend } from "./Legend";
+import { RingPopup } from "./RingPopup";
 import { createBlastSpheresLayer, type BlastSpheresLayer } from "./blastSpheres";
+import { useTheme } from "@/lib/theme/useTheme";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
 type StyleId = "streets" | "light" | "dark";
+/** "auto" derives the style from the app theme; anything else pins it. */
+type StylePreference = "auto" | StyleId;
+
+const MAP_STYLE_KEY = "mapStyle";
 
 const STYLES: Record<StyleId, { url: string; label: string }> = {
   streets: { url: "mapbox://styles/mapbox/streets-v12", label: "Standard" },
   light:   { url: "mapbox://styles/mapbox/light-v11",   label: "Light" },
   dark:    { url: "mapbox://styles/mapbox/dark-v11",    label: "Dark" },
 };
+
+const STYLE_CHOICES: StylePreference[] = ["auto", "streets", "light", "dark"];
+
+function styleLabel(p: StylePreference): string {
+  return p === "auto" ? "Auto" : STYLES[p].label;
+}
 
 const SOURCE_ID = "effect-rings";
 const FILL_LAYER = "effect-rings-fill";
@@ -128,7 +141,30 @@ export default function Map({
   const cityMarkerRefs = useRef<mapboxgl.Marker[]>([]);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const blastLayerRef = useRef<BlastSpheresLayer | null>(null);
-  const [styleId, setStyleId] = useState<StyleId>("light");
+  // Which ring the popup is currently describing, compared by threshold label
+  // so pointer movement within one ring doesn't re-render React.
+  const hoveredKeyRef = useRef<string | null>(null);
+  const [hoveredRing, setHoveredRing] = useState<RingPopupData | null>(null);
+  // Detached node the popup owns and React portals into. State rather than a
+  // ref because it IS render-relevant — it's the portal target.
+  const [popupHost, setPopupHost] = useState<HTMLDivElement | null>(null);
+
+  const { resolvedTheme } = useTheme();
+  // Lazy initializer is safe: this component is loaded with ssr:false, so it
+  // never runs on the server.
+  const [stylePref, setStylePref] = useState<StylePreference>(() => {
+    try {
+      const stored = localStorage.getItem(MAP_STYLE_KEY);
+      if (stored && (STYLE_CHOICES as string[]).includes(stored)) {
+        return stored as StylePreference;
+      }
+    } catch {
+      // Private mode — fall through to the default.
+    }
+    return "auto";
+  });
+  // resolvedTheme is already "light" | "dark", both valid StyleIds.
+  const styleId: StyleId = stylePref === "auto" ? resolvedTheme : stylePref;
 
   // Stable refs so event handlers in imperative Mapbox callbacks never go stale
   const onMapClickRef = useRef(onMapClick);
@@ -164,7 +200,10 @@ export default function Map({
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: STYLES.light.url,
+      // styleId is already correct on first render — this component mounts
+      // post-hydration, so resolvedTheme is settled. The map is born in the
+      // right style: no initial setStyle, no flash.
+      style: STYLES[styleId].url,
       center: [center.lng, center.lat],
       zoom: initialZoom,
       // Start flat. Users can right-click + drag (or shift-drag the compass) to
@@ -191,13 +230,16 @@ export default function Map({
       (map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource).setData(
         desiredGeoJSON.current
       );
-      // Only attach a fresh blast-spheres layer when one isn't already on the
-      // map. setStyle() drops custom layers, so on style swap getLayer returns
-      // undefined and we create a new instance with clean GL state.
+      // Reuse the SAME layer instance across style swaps. setStyle() detaches
+      // custom layers, but the instance holds a WebGLRenderer, a shared
+      // SphereGeometry and per-ring materials — building a fresh one each time
+      // leaked all three over the same GL context, which mattered little when
+      // style changes were rare but does now that the map follows the theme.
+      if (!blastLayerRef.current) {
+        blastLayerRef.current = createBlastSpheresLayer();
+      }
       if (!map.getLayer(BLAST_SPHERES_LAYER)) {
-        const layer = createBlastSpheresLayer();
-        blastLayerRef.current = layer;
-        map.addLayer(layer);
+        map.addLayer(blastLayerRef.current);
       }
       blastLayerRef.current?.setBurst(
         groundZeroRef.current,
@@ -213,49 +255,53 @@ export default function Map({
       onMapClickRef.current(e.lngLat.lat, e.lngLat.lng);
     });
 
-    // Ring hover tooltip
+    // Ring hover callout. ONE popup for the map's lifetime, portalled into a
+    // detached host — the previous implementation parsed an HTML string and
+    // constructed a new Popup on every mousemove (Mapbox fires those at
+    // pointer rate).
+    const host = document.createElement("div");
+    popupRef.current = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      // 12 rather than 8 so the callout clears the cursor.
+      offset: 12,
+      className: "ring-popup",
+      maxWidth: "none",
+    }).setDOMContent(host);
+
     map.on("mousemove", FILL_LAYER, (e) => {
       map.getCanvas().style.cursor = "crosshair";
       const feat = e.features?.[0];
       if (!feat?.properties) return;
-      const p = feat.properties as {
-        thresholdLabel: string;
-        physicalDescription: string;
-        radiusM: number;
-        casualtyRateInner: number;
-      };
-      const html = `
-        <div style="font-size:12px;max-width:210px;font-family:system-ui,sans-serif;line-height:1.4">
-          <p style="font-weight:600;margin:0 0 3px">${p.thresholdLabel}</p>
-          <p style="color:#555;margin:0 0 3px">${p.physicalDescription}</p>
-          <p style="color:#777;margin:0 0 3px">
-            Radius: ${(p.radiusM / 1000).toFixed(2)} km /
-            ${(p.radiusM / 1609.34).toFixed(2)} mi
-          </p>
-          ${
-            p.casualtyRateInner > 0
-              ? `<p style="color:#777;margin:0">Est. fatality rate inside: ${Math.round(p.casualtyRateInner * 100)}%</p>`
-              : ""
-          }
-        </div>`;
-      popupRef.current?.remove();
-      popupRef.current = new mapboxgl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 8,
-      })
-        .setLngLat(e.lngLat)
-        .setHTML(html)
-        .addTo(map);
+      const p = feat.properties as RingPopupData;
+
+      // Position is imperative and never touches React.
+      popupRef.current?.setLngLat(e.lngLat).addTo(map);
+
+      // Content changes only when the pointer crosses into a different ring,
+      // so React renders a handful of times per session rather than ~60/s.
+      if (hoveredKeyRef.current !== p.thresholdLabel) {
+        hoveredKeyRef.current = p.thresholdLabel;
+        setHoveredRing({
+          thresholdLabel: p.thresholdLabel,
+          physicalDescription: p.physicalDescription,
+          radiusM: p.radiusM,
+          casualtyRateInner: p.casualtyRateInner,
+          color: p.color,
+        });
+      }
     });
 
     map.on("mouseleave", FILL_LAYER, () => {
       map.getCanvas().style.cursor = "";
       popupRef.current?.remove();
-      popupRef.current = null;
+      hoveredKeyRef.current = null;
+      setHoveredRing(null);
     });
 
     mapRef.current = map;
+    // Gives the portal a target; also gates the portal on the map existing.
+    setPopupHost(host);
 
     // Mapbox doesn't observe container size changes automatically. A
     // ResizeObserver calls map.resize() when the flex layout shifts (e.g. the
@@ -275,6 +321,13 @@ export default function Map({
     return () => {
       clearTimeout(resizeTimer);
       ro.disconnect();
+      popupRef.current?.remove();
+      popupRef.current = null;
+      setPopupHost(null);
+      // Only place the GPU resources are actually released — onRemove() now
+      // just detaches so style swaps can re-add the same instance.
+      blastLayerRef.current?.dispose();
+      blastLayerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -299,15 +352,37 @@ export default function Map({
   }, [flyTo?.lat, flyTo?.lng, flyTo?.zoom, flyTo?.pitch, flyTo?.nonce]);
 
   // ── Style switching ───────────────────────────────────────────────────────
-  // Skip the first render: map is already initialised with STYLES.light.url.
+  // Skip the first render: the map was already constructed with STYLES[styleId].
   useEffect(() => {
     if (!styleInitialized.current) {
       styleInitialized.current = true;
       return;
     }
-    mapRef.current?.setStyle(STYLES[styleId].url);
-    // onReady (registered above) re-adds layers and restores desiredGeoJSON
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Teardown before the swap. Detach, don't destroy — the popup host and the
+    // sphere layer instance are both reused after the new style loads.
+    popupRef.current?.remove();
+    hoveredKeyRef.current = null;
+    setHoveredRing(null);
+    if (map.getLayer(BLAST_SPHERES_LAYER)) {
+      map.removeLayer(BLAST_SPHERES_LAYER);
+    }
+
+    map.setStyle(STYLES[styleId].url);
+    // onReady (bound to style.load above) re-adds the ring source/layers,
+    // restores desiredGeoJSON, re-adds the sphere layer and replays setBurst.
   }, [styleId]);
+
+  // Persist the user's explicit style choice.
+  useEffect(() => {
+    try {
+      localStorage.setItem(MAP_STYLE_KEY, stylePref);
+    } catch {
+      // Private mode — the choice just won't survive a reload.
+    }
+  }, [stylePref]);
 
   // ── Ring data update ──────────────────────────────────────────────────────
   // Update desiredGeoJSON first so the style-load handler always has the
@@ -343,20 +418,19 @@ export default function Map({
     }
 
     if (!gzMarkerRef.current) {
+      // Class, not inline style — the cascade handles dark mode for free.
+      // NEVER put a transform/scale utility on a marker root: Mapbox rewrites
+      // the element's inline transform every frame to position it.
       const el = document.createElement("div");
-      Object.assign(el.style, {
-        width: "16px",
-        height: "16px",
-        borderRadius: "50%",
-        background: "#ef4444",
-        border: "2.5px solid #fff",
-        boxShadow: "0 0 0 1.5px #ef4444,0 2px 6px rgba(0,0,0,0.4)",
-        cursor: "grab",
-      });
+      el.className = "map-marker-gz";
 
       const marker = new mapboxgl.Marker({ element: el, draggable: true })
         .setLngLat([groundZero.lng, groundZero.lat])
         .addTo(map);
+
+      marker.on("dragstart", () => {
+        el.dataset.dragging = "true";
+      });
 
       // Update ring GeoJSON + 3D spheres live during drag (no React re-render).
       marker.on("drag", () => {
@@ -373,6 +447,7 @@ export default function Map({
       });
 
       marker.on("dragend", () => {
+        delete el.dataset.dragging;
         const { lng, lat } = marker.getLngLat();
         onGroundZeroDragRef.current?.(lat, lng);
       });
@@ -403,15 +478,7 @@ export default function Map({
 
     (cityMarkers ?? []).forEach((city) => {
       const dot = document.createElement("div");
-      Object.assign(dot.style, {
-        width: "14px",
-        height: "14px",
-        borderRadius: "50%",
-        background: "#2563eb",
-        border: "2.5px solid #fff",
-        boxShadow: "0 0 0 1.5px #2563eb,0 2px 6px rgba(0,0,0,0.4)",
-        cursor: "pointer",
-      });
+      dot.className = "map-marker-city";
       dot.addEventListener("click", (e) => {
         e.stopPropagation();
         onCitySelectRef.current?.(city.lat, city.lng);
@@ -422,20 +489,19 @@ export default function Map({
         .addTo(map);
       cityMarkerRefs.current.push(dotMarker);
 
+      // Two elements, not one: Mapbox writes `opacity` and `pointer-events`
+      // as INLINE styles on a marker's root element (terrain occlusion), and
+      // inline beats any stylesheet. So the root is a bare anchor and all the
+      // visuals — including the fade — live on a span Mapbox never touches.
       const label = document.createElement("div");
-      label.textContent = city.label;
-      Object.assign(label.style, {
-        background: "white",
-        color: "#1e293b",
-        padding: "2px 6px",
-        borderRadius: "4px",
-        fontSize: "11px",
-        fontWeight: "500",
-        whiteSpace: "nowrap",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-        pointerEvents: "none",
-        display: "none", // toggled by zoom listener and dot hover
-      });
+      label.className = "map-marker-label-anchor";
+      // Fades via opacity rather than display:none, so labels don't hard-cut
+      // in and out as the zoom animation crosses the threshold.
+      label.dataset.visible = "false";
+      const labelText = document.createElement("span");
+      labelText.className = "map-marker-label";
+      labelText.textContent = city.label;
+      label.appendChild(labelText);
       allLabels.push(label);
       // Anchor 'bottom' = label's bottom edge sits at the lng/lat. Negative
       // y in offset shifts the label upward so its bottom sits ~12px above
@@ -452,18 +518,19 @@ export default function Map({
       // Show this city's label on hover even when global zoom is below the
       // threshold — gives "what city is this?" feedback before clicking.
       dot.addEventListener("mouseenter", () => {
-        label.style.display = "block";
+        label.dataset.visible = "true";
       });
       dot.addEventListener("mouseleave", () => {
-        if (map.getZoom() < LABEL_ZOOM) label.style.display = "none";
+        if (map.getZoom() < LABEL_ZOOM) label.dataset.visible = "false";
       });
     });
 
     // Sync label visibility with zoom. Listening to "zoom" fires throughout
-    // the animation so the transition feels live.
+    // the animation so the transition feels live. dataset writes are
+    // idempotent, so the per-frame firing causes no style thrash.
     const syncLabels = () => {
       const show = map.getZoom() >= LABEL_ZOOM;
-      for (const el of allLabels) el.style.display = show ? "block" : "none";
+      for (const el of allLabels) el.dataset.visible = String(show);
     };
     syncLabels();
     map.on("zoom", syncLabels);
@@ -472,35 +539,53 @@ export default function Map({
     };
   }, [cityMarkers]);
 
-  // Background that approximates each Mapbox style's land color. The map
-  // container shows this underneath the GL canvas, so when the panel
-  // expand/collapse resizes the map the newly-exposed strip shows this color
-  // for the frame before Mapbox repaints — preventing a black flash.
-  const mapBg = styleId === "dark" ? "#1a1a1a" : "#e8e6e1";
-
   return (
-    <div className="relative w-full h-full" style={{ background: mapBg }}>
-      <div ref={containerRef} style={{ width: "100%", height: "100%", background: mapBg }} />
+    // data-map-style drives --map-bg (see globals.css). The container shows
+    // that color under the GL canvas, so the strip exposed by a panel
+    // resize paints the land color for a frame instead of flashing black.
+    <div
+      className="relative w-full h-full bg-[var(--map-bg)]"
+      data-map-style={styleId}
+    >
+      <div ref={containerRef} className="w-full h-full bg-[var(--map-bg)]" />
 
-      {/* Style switcher */}
-      <div className="absolute top-2 right-2 z-10 flex rounded-md overflow-hidden border border-slate-300 dark:border-zinc-600 shadow-sm">
-        {(Object.keys(STYLES) as StyleId[]).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStyleId(s)}
-            className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
-              styleId === s
-                ? "bg-slate-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
-                : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-slate-800"
-            }`}
-            aria-pressed={styleId === s}
-          >
-            {STYLES[s].label}
-          </button>
-        ))}
+      {/* Basemap switcher. "Auto" follows the app theme; picking any other
+          option pins it. In auto mode the derived option keeps a subdued
+          ring so it's visible which one auto landed on. */}
+      <div
+        className="absolute top-2 right-2 z-10 flex overflow-hidden rounded-lg border border-slate-300 dark:border-zinc-700 shadow-md"
+        role="group"
+        aria-label="Basemap style"
+      >
+        {STYLE_CHOICES.map((s) => {
+          const active = stylePref === s;
+          const derived = stylePref === "auto" && s === styleId;
+          return (
+            <button
+              key={s}
+              onClick={() => setStylePref(s)}
+              className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                active
+                  ? "bg-slate-800 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : derived
+                    ? "bg-white text-slate-700 ring-1 ring-inset ring-slate-400 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-zinc-500"
+                    : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              }`}
+              aria-pressed={active}
+            >
+              {styleLabel(s)}
+            </button>
+          );
+        })}
       </div>
 
       {groundZero && rings.length > 0 && <Legend rings={rings} />}
+
+      {/* Ring callout contents. Mapbox owns the popup's position and moves
+          this host into its own DOM; React keeps rendering into it. */}
+      {popupHost &&
+        hoveredRing &&
+        createPortal(<RingPopup ring={hoveredRing} />, popupHost)}
     </div>
   );
 }

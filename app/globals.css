@@ -166,6 +166,134 @@
   --map-bg: #1a1a1a;
 }
 
+/* ── Ring hover callout ─────────────────────────────────────────────────────
+   Defeats Mapbox's white popup chrome so RingPopup's own tokens show through.
+   Scoped to .ring-popup so any future popup is unaffected. */
+.ring-popup .mapboxgl-popup-content {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 0.16),
+    0 0 0 1px var(--border);
+  padding: 0; /* RingPopup owns its padding */
+}
+
+/* Not cosmetic: Mapbox sets pointer-events:auto on the popup content, so the
+   callout used to land under the cursor and swallow the click that moves
+   ground zero — and re-trigger mouseleave on the fill layer, flickering. */
+.ring-popup {
+  pointer-events: none;
+}
+
+/* The tip is a CSS triangle colored via one border edge, and which edge
+   depends on the anchor Mapbox picked — so all eight need covering. */
+.ring-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
+.ring-popup.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
+.ring-popup.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
+  border-top-color: var(--popover);
+}
+.ring-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
+.ring-popup.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
+.ring-popup.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
+  border-bottom-color: var(--popover);
+}
+.ring-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: var(--popover);
+}
+.ring-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: var(--popover);
+}
+
+/* ── Mapbox chrome in dark mode ─────────────────────────────────────────── */
+.dark .mapboxgl-ctrl-group {
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.dark .mapboxgl-ctrl-group button + button {
+  border-top-color: var(--border);
+}
+/* The control glyphs are inline-SVG data URIs, so inverting is the practical
+   way to make them legible on a dark surface. */
+.dark .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
+  filter: invert(1);
+}
+.dark .mapboxgl-ctrl-attrib {
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+}
+.dark .mapboxgl-ctrl-attrib a {
+  color: var(--muted-foreground);
+}
+
+/* ── Map markers ────────────────────────────────────────────────────────────
+   Classes rather than inline styles so the cascade handles dark mode.
+
+   Deliberately NOT inside @layer components, and deliberately qualified with
+   `div`. mapbox-gl.css is imported from Map.tsx as plain unlayered CSS, and
+   unlayered rules beat every @layer — its `.mapboxgl-marker { opacity: 1;
+   transition: opacity .2s }` silently won over a layered `.map-marker-label`,
+   pinning every city label visible. Staying unlayered puts these on equal
+   footing, and the `div` qualifier (0,1,1) outranks `.mapboxgl-marker` (0,1,0)
+   regardless of which stylesheet the bundler emits first.
+
+   Never add a transform here — Mapbox rewrites these elements' inline
+   transform every frame to position them. */
+div.map-marker-gz {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2.5px solid #fff;
+  box-shadow:
+    0 0 0 1.5px #ef4444,
+    0 2px 6px rgb(0 0 0 / 0.4);
+  cursor: grab;
+}
+div.map-marker-gz[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+div.map-marker-city {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2.5px solid #fff;
+  box-shadow:
+    0 0 0 1.5px #2563eb,
+    0 2px 6px rgb(0 0 0 / 0.4);
+  cursor: pointer;
+}
+
+/* The anchor is the Mapbox marker root — leave its opacity and
+   pointer-events alone, Mapbox owns those inline. */
+span.map-marker-label {
+  display: block;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 0.2),
+    0 0 0 1px var(--border);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+[data-visible="true"] > span.map-marker-label {
+  opacity: 1;
+}
+
+/* The white halo reads as a hole punched in a dark basemap; match the
+   surface instead and let the colored outer ring carry the identity. */
+.dark div.map-marker-gz,
+.dark div.map-marker-city {
+  border-color: var(--card);
+}
+
 /* Scrollbar theming — light and dark mode */
 ::-webkit-scrollbar {
   width: 6px;

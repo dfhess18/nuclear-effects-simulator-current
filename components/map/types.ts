@@ -7,6 +7,19 @@ export interface CityMarker {
   lng: number;
 }
 
+/**
+ * The subset of EffectRing the hover callout displays. Mapbox flattens feature
+ * properties, so these must all stay primitives — an object or array would
+ * arrive from queryRenderedFeatures as a JSON string needing a parse.
+ */
+export interface RingPopupData {
+  thresholdLabel: string;
+  physicalDescription: string;
+  radiusM: number;
+  casualtyRateInner: number;
+  color: string;
+}
+
 export interface MapProps {
   /** Map center on initial render (not reactive after first mount). */
   center: { lat: number; lng: number };

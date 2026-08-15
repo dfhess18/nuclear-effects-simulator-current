@@ -34,6 +34,12 @@ export interface BlastSpheresLayer extends mapboxgl.CustomLayerInterface {
     hobM: number,
     rings: EffectRing[]
   ): void;
+  /**
+   * Full teardown — geometries, materials, renderer. Call ONCE on unmount,
+   * before map.remove(). Deliberately NOT called on style swaps: setStyle()
+   * detaches custom layers, and this same instance gets re-added afterwards.
+   */
+  dispose(): void;
 }
 
 export function createBlastSpheresLayer(): BlastSpheresLayer {
@@ -75,6 +81,10 @@ export function createBlastSpheresLayer(): BlastSpheresLayer {
 
   let renderer: THREE.WebGLRenderer | null = null;
   let mapInstance: mapboxgl.Map | null = null;
+  // Mapbox keeps the same canvas and GL context across setStyle(), so the
+  // renderer can be reused. Tracked so we only rebuild it if the context
+  // genuinely changes.
+  let cachedGl: WebGL2RenderingContext | null = null;
 
   // Current burst state — read each frame to compute the model transform.
   let currentGz: { lat: number; lng: number } | null = null;
@@ -154,18 +164,42 @@ export function createBlastSpheresLayer(): BlastSpheresLayer {
     renderingMode: "3d" as const,
 
     onAdd(map: mapboxgl.Map, gl: WebGL2RenderingContext) {
+      // Must reassign unconditionally — on re-add after a style swap this is
+      // what makes triggerRepaint() work again. Skip it and the spheres freeze.
       mapInstance = map;
-      renderer = new THREE.WebGLRenderer({
-        canvas: map.getCanvas(),
-        context: gl,
-        antialias: true,
-      });
-      renderer.autoClear = false;
+      if (!renderer || cachedGl !== gl) {
+        renderer?.dispose();
+        renderer = new THREE.WebGLRenderer({
+          canvas: map.getCanvas(),
+          context: gl,
+          antialias: true,
+        });
+        renderer.autoClear = false;
+        cachedGl = gl;
+      }
     },
 
     onRemove() {
+      // Detach only. The renderer, geometries and materials are kept so a
+      // style swap can re-add this same instance without recompiling
+      // programs or leaking a second renderer over the same GL context.
+      mapInstance = null;
+    },
+
+    dispose() {
+      sphereGeom.dispose();
+      dropLineGeom.dispose();
+      dropLineMat.dispose();
+      burstIndicator.geometry.dispose();
+      (burstIndicator.material as THREE.Material).dispose();
+      for (const m of ringMeshes) {
+        scene.remove(m);
+        (m.material as THREE.Material).dispose();
+      }
+      ringMeshes.length = 0;
       renderer?.dispose();
       renderer = null;
+      cachedGl = null;
       mapInstance = null;
     },
 
