@@ -21,8 +21,7 @@ const CATEGORY_LABELS = {
 };
 
 // Shared easing/duration so the legend matches the ResultsPanel transition.
-const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
-const DUR = 450;
+import { DUR, EASE } from "@/lib/motion";
 
 export function Legend({ rings }: LegendProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -43,10 +42,15 @@ export function Legend({ rings }: LegendProps) {
   if (categories.length === 0) return null;
 
   return (
-    <div className="absolute bottom-8 right-2 z-[1000] bg-white/95 dark:bg-zinc-900/95 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg min-w-[220px] max-w-[260px] text-xs overflow-hidden">
+    // max-h is relative to the map wrapper (the positioned ancestor), not the
+    // viewport: with radiation rings there are 11 rows, and expanding the
+    // results panel shrinks the map enough that the list would otherwise
+    // overflow past its top edge. flex + min-h-0 lets the row list scroll
+    // while the header stays put.
+    <div className="absolute bottom-8 right-2 z-[1000] flex flex-col max-h-[calc(100%-4rem)] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/5 min-w-[220px] max-w-[260px] text-xs overflow-hidden">
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+        className="w-full shrink-0 flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
         aria-expanded={!collapsed}
       >
         <span className="font-semibold text-slate-800 dark:text-zinc-200 text-[11px] uppercase tracking-wide">
@@ -67,15 +71,15 @@ export function Legend({ rings }: LegendProps) {
 
       {/* Smooth reveal via grid 0fr->1fr height-to-auto, matching ResultsPanel. */}
       <div
-        className="grid"
+        className="grid min-h-0"
         style={{
           gridTemplateRows: collapsed ? "0fr" : "1fr",
           transition: `grid-template-rows ${DUR}ms ${EASE}`,
         }}
       >
-        <div className="overflow-hidden">
+        <div className="overflow-hidden min-h-0">
           <div
-            className="px-3 pb-3"
+            className="px-3 pb-3 h-full overflow-y-auto"
             style={{
               opacity: collapsed ? 0 : 1,
               transition: `opacity ${DUR}ms ${EASE}`,

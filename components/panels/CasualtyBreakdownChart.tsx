@@ -13,39 +13,54 @@ import type { CasualtyEstimate } from "@/lib/casualties/types";
  * Single stacked horizontal bar showing the proportion of fatalities vs.
  * blast injuries vs. burn injuries.
  *
- * Colours are pulled from the same palettes the map rings use — slate for
- * fatalities, the blast purple, and the thermal orange — so a reader can
- * connect a segment here to a ring on the map without a lookup. Each entry
- * carries a light/dark pair because the results bar sits on white in light
- * mode and near-black in dark mode.
+ * Blast and burns inherit the map's ring hues so a segment here can be
+ * connected to a ring on the map without a lookup. Fatalities leads with MIT
+ * crimson.
+ *
+ * Every value below was picked with scripts/validate_palette.js from the
+ * dataviz skill rather than by eye, and both modes pass all six checks under
+ * --pairs all. Two things that measurement caught:
+ *  - The previous light-mode fatalities slate (#334155) failed the lightness
+ *    band AND the chroma floor — it literally "read gray".
+ *  - Dark needs its OWN steps, not a flip of light. The brand's dark accent
+ *    (#FF5A6F) sits at ΔE 12.6 from the thermal orange, under the hard
+ *    normal-vision floor of 15. And the dark band is L 0.48–0.67, so these
+ *    are mid-tones, not the pastels dark mode usually wants.
+ *
+ * Dark's worst CVD pair is ΔE 7.4 (deutan), inside the 6–8 floor band, which
+ * is legal only with secondary encoding — hence the direct-labelled legend
+ * below and the SEGMENT_GAP between fills. Don't remove either.
  */
 const chartConfig = {
   fatalities: {
     label: "Fatalities",
-    theme: { light: "#334155", dark: "#e4e4e7" },
+    theme: { light: "#A31F34", dark: "#E8556E" },
   },
   injuriesBlast: {
     label: "Blast injuries",
-    theme: { light: "#C044D0", dark: "#C044D0" },
+    theme: { light: "#C044D0", dark: "#CB5AD8" },
   },
   injuriesBurns: {
     label: "Burn injuries",
-    theme: { light: "#E88535", dark: "#E88535" },
+    theme: { light: "#E88535", dark: "#C9821F" },
   },
 } satisfies ChartConfig;
+
+/** Surface-coloured gap between stacked fills, in px. Secondary encoding. */
+const SEGMENT_GAP = 2;
 
 const KEYS = ["fatalities", "injuriesBlast", "injuriesBurns"] as const;
 
 /**
  * Legend dot colours, duplicated as literal utility classes.
  * ChartStyle scopes its `--color-*` vars to the ChartContainer element, so the
- * legend — a sibling of that element — can't read them. slate-700/zinc-200
- * are the same hexes the config above uses for fatalities.
+ * legend — a sibling of that element — can't read them. Keep these in step
+ * with chartConfig above.
  */
 const DOT_CLASS: Record<(typeof KEYS)[number], string> = {
-  fatalities: "bg-slate-700 dark:bg-zinc-200",
-  injuriesBlast: "bg-[#C044D0]",
-  injuriesBurns: "bg-[#E88535]",
+  fatalities: "bg-brand dark:bg-[#E8556E]",
+  injuriesBlast: "bg-[#C044D0] dark:bg-[#CB5AD8]",
+  injuriesBurns: "bg-[#E88535] dark:bg-[#C9821F]",
 };
 
 interface Props {
@@ -95,22 +110,32 @@ export function CasualtyBreakdownChart({ casualties }: Props) {
             cursor={false}
             content={<ChartTooltipContent hideLabel />}
           />
+          {/* The stroke is painted in the surface colour, which is how the
+              2px gap between fills is achieved — recharts has no gap option
+              for stacked segments. Rounded ends only on the outer two so the
+              stack still reads as one bar. */}
           <Bar
             dataKey="fatalities"
             stackId="a"
             fill="var(--color-fatalities)"
             radius={[4, 0, 0, 4]}
+            stroke="var(--color-background)"
+            strokeWidth={SEGMENT_GAP}
           />
           <Bar
             dataKey="injuriesBlast"
             stackId="a"
             fill="var(--color-injuriesBlast)"
+            stroke="var(--color-background)"
+            strokeWidth={SEGMENT_GAP}
           />
           <Bar
             dataKey="injuriesBurns"
             stackId="a"
             fill="var(--color-injuriesBurns)"
             radius={[0, 4, 4, 0]}
+            stroke="var(--color-background)"
+            strokeWidth={SEGMENT_GAP}
           />
         </BarChart>
       </ChartContainer>

@@ -97,6 +97,15 @@ export function subscribe(onChange: () => void): () => void {
     mediaQuery = window.matchMedia(DARK_QUERY);
     mediaQuery.addEventListener("change", handleMediaChange);
     window.addEventListener("storage", handleStorage);
+    // Enables the surface cross-fade (see .theme-ready in globals.css) only
+    // after the first paint, so a page load doesn't animate up from the
+    // default palette. Two frames: one to commit the initial paint, one to
+    // land after it.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        document.documentElement.classList.add("theme-ready")
+      )
+    );
   }
   listeners.add(onChange);
 

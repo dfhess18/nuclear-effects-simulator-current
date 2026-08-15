@@ -153,6 +153,47 @@
   }
 }
 
+/* Soften the theme flip so surfaces cross-fade instead of snapping.
+   Gated on .theme-ready — which ThemeToggle adds after the first frame —
+   because otherwise every page load animates up from the default palette.
+   Deliberately narrow: transitioning `all` here would fight the panel
+   size animations, which run their own timings. */
+.theme-ready body,
+.theme-ready aside,
+.theme-ready header,
+.theme-ready footer,
+.theme-ready [data-slot="card"],
+.theme-ready [data-slot="alert"],
+.theme-ready [data-slot="tabs-list"] {
+  transition:
+    background-color 220ms ease-out,
+    border-color 220ms ease-out,
+    color 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Belt and braces: kill the theme cross-fade, the label fades, and the
+     panel/legend height animations for anyone who's asked for less motion. */
+  .theme-ready body,
+  .theme-ready aside,
+  .theme-ready header,
+  .theme-ready footer,
+  .theme-ready [data-slot="card"],
+  .theme-ready [data-slot="alert"],
+  .theme-ready [data-slot="tabs-list"],
+  span.map-marker-label {
+    transition: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Basemap backdrop, keyed off data-map-style on the map wrapper. Painted
    behind the canvas so the debounced ResizeObserver -> map.resize() in
    Map.tsx doesn't flash black on a dark style (or white on a light one). */

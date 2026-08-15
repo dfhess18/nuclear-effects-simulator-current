@@ -194,7 +194,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 function FeatureCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-6 hover:border-brand-accent/30 transition-colors">
+    <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-6 shadow-sm hover:border-brand-accent/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
       <div className="text-[11px] font-semibold uppercase tracking-widest mb-2 text-brand-accent">
         {title}
       </div>

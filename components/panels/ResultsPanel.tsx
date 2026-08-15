@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { InfoIcon, MapPinIcon } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -26,8 +35,7 @@ function fmt(n: number): string {
 }
 
 // Shared easing/duration so every animated property moves together.
-const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
-const DUR = 450;
+import { DUR, EASE } from "@/lib/motion";
 
 export function ResultsPanel({
   casualties,
@@ -39,10 +47,18 @@ export function ResultsPanel({
 
   if (!groundZeroPlaced) {
     return (
-      <div className="border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 px-6 py-2.5 text-center">
-        <p className="text-xs text-slate-500 dark:text-zinc-400">
-          Click a city or anywhere on the map to place ground zero.
-        </p>
+      <div className="border-t border-slate-200 dark:border-zinc-800 bg-gradient-to-b from-slate-50 to-white dark:from-zinc-900 dark:to-zinc-950">
+        <Empty className="gap-2 py-4">
+          <EmptyHeader className="gap-1">
+            <EmptyMedia variant="icon" className="mb-0 size-7">
+              <MapPinIcon />
+            </EmptyMedia>
+            <EmptyTitle className="text-sm">No ground zero placed</EmptyTitle>
+            <EmptyDescription className="text-xs">
+              Click a city marker or anywhere on the map to run the model.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </div>
     );
   }
@@ -83,7 +99,7 @@ export function ResultsPanel({
   ];
 
   return (
-    <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+    <div className="border-t border-slate-200 dark:border-zinc-800 bg-gradient-to-b from-slate-50/80 to-white dark:from-zinc-800/40 dark:to-zinc-900">
       {/* Header — always the top row. Acts as the toggle. */}
       <button
         onClick={() => setExpanded((e) => !e)}
@@ -144,7 +160,7 @@ export function ResultsPanel({
           >
             {/* Bubble — fades in behind the metric, staggered per cell. */}
             <div
-              className="absolute inset-0 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60"
+              className="absolute inset-0 rounded-xl border border-slate-200 dark:border-zinc-700 bg-gradient-to-b from-white to-slate-50 shadow-sm dark:from-zinc-800 dark:to-zinc-800/50"
               style={{
                 opacity: expanded ? 1 : 0,
                 transition: `opacity ${DUR}ms ${EASE}`,
@@ -244,11 +260,17 @@ export function ResultsPanel({
                 <Skeleton className="h-3.5 w-[64%]" />
               </div>
             )}
-            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2 pb-4">
-              All figures are rough estimates using a zone-based population
-              density model. Actual casualties would depend on time of day,
-              sheltering, building density, evacuation, and emergency response.
-            </p>
+            <Alert className="mt-3 mb-4 bg-slate-50 dark:bg-zinc-800/50">
+              <InfoIcon className="text-slate-400 dark:text-zinc-500" />
+              <AlertTitle className="text-xs text-slate-600 dark:text-zinc-400">
+                Estimates, not predictions
+              </AlertTitle>
+              <AlertDescription className="text-xs text-slate-400 dark:text-zinc-500">
+                All figures use a zone-based population density model. Actual
+                casualties would depend on time of day, sheltering, building
+                density, evacuation, and emergency response.
+              </AlertDescription>
+            </Alert>
           </div>
         </div>
       </div>

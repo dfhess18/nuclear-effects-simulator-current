@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   HoverCard,
   HoverCardContent,
@@ -120,16 +122,25 @@ export function InputsPanel({
   };
 
   return (
-    <aside className="w-72 flex-shrink-0 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 overflow-y-auto">
+    <ScrollArea className="w-72 flex-shrink-0 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800">
       <Tabs defaultValue="weapon" className="p-5 gap-4">
-        <TabsList className="w-full grid grid-cols-3">
-          <TabsTrigger value="weapon" className="text-xs">
+        <TabsList className="w-full grid grid-cols-3 bg-gradient-to-b from-slate-100 to-slate-50 dark:from-zinc-800 dark:to-zinc-800/60">
+          <TabsTrigger
+            value="weapon"
+            className="text-xs data-active:text-brand-accent dark:data-active:text-brand-accent"
+          >
             Weapon
           </TabsTrigger>
-          <TabsTrigger value="conditions" className="text-xs">
+          <TabsTrigger
+            value="conditions"
+            className="text-xs data-active:text-brand-accent dark:data-active:text-brand-accent"
+          >
             Conditions
           </TabsTrigger>
-          <TabsTrigger value="location" className="text-xs">
+          <TabsTrigger
+            value="location"
+            className="text-xs data-active:text-brand-accent dark:data-active:text-brand-accent"
+          >
             Location
           </TabsTrigger>
         </TabsList>
@@ -340,26 +351,31 @@ export function InputsPanel({
             <div className="space-y-3">
               <div>
                 <Label className="text-sm text-slate-600 dark:text-zinc-400 mb-1 block">Time of day</Label>
-                <div
-                  className="flex rounded-md border border-slate-200 dark:border-zinc-700 overflow-hidden"
-                  role="group"
+                {/* Base UI ToggleGroup is multi-select by design, so the value
+                    is an array. Ignoring an empty array keeps this
+                    single-select: clicking the active option can't deselect
+                    it and leave the model with no time of day. */}
+                <ToggleGroup
+                  value={[timeOfDay]}
+                  onValueChange={(v) => {
+                    const next = v[0] as TimeOfDay | undefined;
+                    if (next) onTimeOfDayChange(next);
+                  }}
+                  variant="outline"
+                  spacing={0}
                   aria-label="Time of day"
+                  className="w-full"
                 >
                   {(["day", "night"] as const).map((t) => (
-                    <button
+                    <ToggleGroupItem
                       key={t}
-                      onClick={() => onTimeOfDayChange(t)}
-                      className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                        timeOfDay === t
-                          ? "bg-slate-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
-                          : "bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                      }`}
-                      aria-pressed={timeOfDay === t}
+                      value={t}
+                      className="flex-1 text-sm data-pressed:bg-brand data-pressed:text-brand-fg data-pressed:border-brand"
                     >
                       {t === "day" ? "Day" : "Night"}
-                    </button>
+                    </ToggleGroupItem>
                   ))}
-                </div>
+                </ToggleGroup>
                 <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">
                   {timeOfDay === "day"
                     ? "50% indoors / 50% outdoors (workday)"
@@ -464,6 +480,6 @@ export function InputsPanel({
           </div>
         </TabsContent>
       </Tabs>
-    </aside>
+    </ScrollArea>
   );
 }
