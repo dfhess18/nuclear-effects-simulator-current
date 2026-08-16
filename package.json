@@ -16,6 +16,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cobe": "^2.0.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
     "mapbox-gl": "^3.23.1",
