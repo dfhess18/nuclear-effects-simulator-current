@@ -335,6 +335,103 @@ span.map-marker-label {
   border-color: var(--card);
 }
 
+/* ── Landing-page city pins ─────────────────────────────────────────────────
+   Each pin is a miniature of what the simulator actually draws: a bright core
+   inside an overpressure contour. Unlayered and element-qualified for the same
+   reason as the markers above — mapbox-gl.css is imported unlayered and would
+   otherwise outrank anything in @layer. Visuals sit on the inner spans because
+   Mapbox owns the marker root's inline transform and opacity. */
+/* No `position` here on purpose. Mapbox sets .mapboxgl-marker to
+   position:absolute, and `div.cpm-pin` (0,1,1) outranks it (0,1,0) — both
+   being unlayered — so declaring `relative` drops every pin into normal flow,
+   where they stack down the container and then get Mapbox's transform applied
+   on top. The absolute positioning Mapbox supplies is also the positioned
+   ancestor the child spans need, so there is nothing to replace it with. */
+div.cpm-pin {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  outline: none;
+}
+div.cpm-pin > span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+div.cpm-pin .cpm-core {
+  width: 6px;
+  height: 6px;
+  background: var(--brand-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--background) 70%, transparent);
+}
+div.cpm-pin .cpm-ring {
+  width: 14px;
+  height: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 55%, transparent);
+  transition:
+    width 260ms ease-out,
+    height 260ms ease-out,
+    border-color 260ms ease-out;
+}
+div.cpm-pin .cpm-halo {
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--brand-accent) 32%, transparent) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition:
+    width 320ms ease-out,
+    height 320ms ease-out,
+    opacity 320ms ease-out;
+}
+div.cpm-pin .cpm-name {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 0);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: 0 0 0 1px var(--border);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+div.cpm-pin:hover .cpm-ring,
+div.cpm-pin:focus-visible .cpm-ring,
+div.cpm-pin[data-active="true"] .cpm-ring {
+  width: 30px;
+  height: 30px;
+  border-color: var(--brand-accent);
+}
+div.cpm-pin:hover .cpm-halo,
+div.cpm-pin:focus-visible .cpm-halo,
+div.cpm-pin[data-active="true"] .cpm-halo {
+  width: 52px;
+  height: 52px;
+  opacity: 1;
+}
+div.cpm-pin:hover .cpm-name,
+div.cpm-pin:focus-visible .cpm-name,
+div.cpm-pin[data-active="true"] .cpm-name {
+  opacity: 1;
+}
+div.cpm-pin:focus-visible .cpm-core {
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--brand-accent);
+}
+
 /* Scrollbar theming — light and dark mode */
 ::-webkit-scrollbar {
   width: 6px;

@@ -17,7 +17,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { InputsPanel } from "@/components/panels/InputsPanel";
 import { ResultsPanel } from "@/components/panels/ResultsPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -29,6 +30,7 @@ import { computeEffects, optimalHobM } from "@/lib/physics/index";
 import type { WeaponPreset } from "@/lib/weapons/types";
 import type { BurstType, Weather, TimeOfDay } from "@/lib/physics/types";
 import type { CityMarker } from "@/components/map/types";
+import type { CityEntry } from "@/lib/cities/registry";
 import type { PopulationSource } from "@/lib/casualties/types";
 
 // SSR-disabled — Mapbox needs window/document.
@@ -51,8 +53,22 @@ const CITY_MARKERS: CityMarker[] = CITIES.map((c) => ({
   lng: c.defaultCenter.lng,
 }));
 
-export default function SimulatorPage() {
-  const [cityId, setCityId] = useState<string>(DEFAULT_CITY_ID);
+/**
+ * Reads ?city=<id>, written by the landing page when the user picks a city
+ * there. Falls back to the default whenever the value is missing or unknown,
+ * so a hand-edited URL can never leave the simulator without a city.
+ */
+function useRequestedCity(): CityEntry | null {
+  const requested = useSearchParams().get("city");
+  if (!requested) return null;
+  return findCity(requested) ?? null;
+}
+
+function SimulatorPageInner() {
+  const requestedCity = useRequestedCity();
+  const [cityId, setCityId] = useState<string>(
+    requestedCity?.id ?? DEFAULT_CITY_ID
+  );
   const activeCity = findCity(cityId) ?? findCity(DEFAULT_CITY_ID)!;
 
   // Population source for the active city. Begins as the zone-model fallback
@@ -87,11 +103,19 @@ export default function SimulatorPage() {
   const [hobM, setHobM] = useState(optimalHobM(DEFAULT_PRESET.yieldKt));
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("day");
   const [weather, setWeather] = useState<Weather>("clear");
-  const [groundZero, setGroundZero] = useState<{ lat: number; lng: number } | null>(null);
+  // Seeded from ?city= so arriving from the landing page lands already framed
+  // on the chosen city, continuing the zoom the user started there.
+  const [groundZero, setGroundZero] = useState<{ lat: number; lng: number } | null>(
+    requestedCity ? requestedCity.defaultGroundZero : null
+  );
   // Only set when the user actively picks a city (dropdown / marker click).
   // The Map flies to it on change; on initial mount it's undefined so the
   // map stays at the country-level overview the user expects.
-  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number; zoom?: number; pitch?: number; nonce?: number } | undefined>();
+  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number; zoom?: number; pitch?: number; nonce?: number } | undefined>(
+    requestedCity
+      ? { ...requestedCity.defaultCenter, zoom: 11, nonce: 0 }
+      : undefined
+  );
 
   const activeYieldKt = useCustomYield ? customYieldKt : preset.yieldKt;
 
@@ -240,5 +264,23 @@ export default function SimulatorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SimulatorPage() {
+  // useSearchParams forces client-side rendering up to the nearest Suspense
+  // boundary on a prerendered route, so the boundary is required here.
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-white dark:bg-zinc-950">
+          <p className="text-sm text-slate-500 dark:text-zinc-400">
+            Loading simulator…
+          </p>
+        </div>
+      }
+    >
+      <SimulatorPageInner />
+    </Suspense>
   );
 }
