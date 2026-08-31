@@ -41,6 +41,17 @@ function styleLabel(p: StylePreference): string {
   return p === "auto" ? "Auto" : STYLES[p].label;
 }
 
+/** Roomy enough that the whole continental US always fits at MIN_ZOOM, tight
+ *  enough that the camera can't wander to another continent. */
+export const US_MAX_BOUNDS: [[number, number], [number, number]] = [
+  [-140, 16],
+  [-56, 56],
+];
+/** Padding used when framing US_BOUNDS, leaving space for the landing rail. */
+const FIT_PADDING = { top: 70, right: 60, bottom: 90, left: 60 };
+/** Stops the user zooming out past the country. */
+const MIN_ZOOM = 2.7;
+
 const SOURCE_ID = "effect-rings";
 const FILL_LAYER = "effect-rings-fill";
 const STROKE_LAYER = "effect-rings-stroke";
@@ -134,6 +145,9 @@ export default function Map({
   onMapClick,
   onGroundZeroDrag,
   onCitySelect,
+  onViewStateChange,
+  resizeTicker = 0,
+  liveResizeMs = 600,
 }: MapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -170,6 +184,7 @@ export default function Map({
   const onMapClickRef = useRef(onMapClick);
   const onGroundZeroDragRef = useRef(onGroundZeroDrag);
   const onCitySelectRef = useRef(onCitySelect);
+  const onViewStateChangeRef = useRef(onViewStateChange);
   const ringsRef = useRef(rings);
   const groundZeroRef = useRef(groundZero);
   const hobMRef = useRef(hobM);
@@ -190,6 +205,7 @@ export default function Map({
   useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { onGroundZeroDragRef.current = onGroundZeroDrag; }, [onGroundZeroDrag]);
   useEffect(() => { onCitySelectRef.current = onCitySelect; }, [onCitySelect]);
+  useEffect(() => { onViewStateChangeRef.current = onViewStateChange; }, [onViewStateChange]);
   useEffect(() => { ringsRef.current = rings; }, [rings]);
   useEffect(() => { groundZeroRef.current = groundZero; }, [groundZero]);
   useEffect(() => { hobMRef.current = hobM; }, [hobM]);
@@ -210,6 +226,9 @@ export default function Map({
       // tilt into a 3D view; the blast spheres appear as the pitch increases.
       pitch: 0,
       maxPitch: 80,
+      // The tool only models US cities, so the camera is fenced to them.
+      maxBounds: US_MAX_BOUNDS,
+      minZoom: MIN_ZOOM,
     });
 
     // visualizePitch lets the compass show the current pitch state, so users
@@ -249,6 +268,21 @@ export default function Map({
     };
     map.on("load", onReady);
     map.on("style.load", onReady);
+
+    // Report camera orientation so the parent can decide what "reset" means
+    // next: level a tilted view first, then zoom back out to the country.
+    const reportView = () => {
+      const c = map.getCenter();
+      onViewStateChangeRef.current?.({
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+        zoom: map.getZoom(),
+        center: { lat: c.lat, lng: c.lng },
+      });
+    };
+    map.on("moveend", reportView);
+    map.on("pitchend", reportView);
+    map.on("rotateend", reportView);
 
     // Map click → place / move ground zero
     map.on("click", (e) => {
@@ -342,14 +376,61 @@ export default function Map({
   // strict mode and ends up flying anyway, so the parent owns this signal.
   useEffect(() => {
     if (!flyTo || !mapRef.current) return;
-    mapRef.current.flyTo({
+    const map = mapRef.current;
+
+    // Bounds mode: frame a region regardless of container aspect. A fixed
+    // zoom can't do this — the same zoom shows far less once the sidebar
+    // takes 18rem off the map's width.
+    if (flyTo.bounds) {
+      map.fitBounds(flyTo.bounds, {
+        padding: FIT_PADDING,
+        pitch: flyTo.pitch ?? 0,
+        bearing: flyTo.bearing ?? 0,
+        duration: flyTo.duration ?? 1600,
+        essential: true,
+      });
+      return;
+    }
+
+    map.flyTo({
       center: [flyTo.lng, flyTo.lat],
       zoom: flyTo.zoom ?? 12,
       ...(flyTo.pitch !== undefined && { pitch: flyTo.pitch }),
-      duration: 1400,
+      ...(flyTo.bearing !== undefined && { bearing: flyTo.bearing }),
+      // With no explicit duration Mapbox derives one from the distance, so a
+      // coast-to-coast switch takes proportionally longer rather than being
+      // crammed into the same window and tearing through tiles.
+      ...(flyTo.duration !== undefined
+        ? { duration: flyTo.duration }
+        : { speed: 0.9, curve: 1.42, maxDuration: 4200 }),
       essential: true,
     });
-  }, [flyTo?.lat, flyTo?.lng, flyTo?.zoom, flyTo?.pitch, flyTo?.nonce]);
+  }, [
+    flyTo?.lat,
+    flyTo?.lng,
+    flyTo?.zoom,
+    flyTo?.pitch,
+    flyTo?.bearing,
+    flyTo?.duration,
+    flyTo?.bounds,
+    flyTo?.nonce,
+  ]);
+
+  // ── Live resize during layout animations ─────────────────────────────────
+  // Keeps the projection correct on every frame while panels open or close,
+  // instead of one corrective jump at the end.
+  useEffect(() => {
+    if (!resizeTicker || !mapRef.current) return;
+    const map = mapRef.current;
+    const until = performance.now() + liveResizeMs;
+    let raf = 0;
+    const step = () => {
+      map.resize();
+      if (performance.now() < until) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [resizeTicker, liveResizeMs]);
 
   // ── Style switching ───────────────────────────────────────────────────────
   // Skip the first render: the map was already constructed with STYLES[styleId].

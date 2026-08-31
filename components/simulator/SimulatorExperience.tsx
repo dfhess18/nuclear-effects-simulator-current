@@ -38,7 +38,7 @@ import { computeEffects, optimalHobM } from "@/lib/physics/index";
 import { EASE } from "@/lib/motion";
 import type { WeaponPreset } from "@/lib/weapons/types";
 import type { BurstType, Weather, TimeOfDay } from "@/lib/physics/types";
-import type { CityMarker } from "@/components/map/types";
+import type { CityMarker, MapProps } from "@/components/map/types";
 import type { PopulationSource } from "@/lib/casualties/types";
 
 const Map = dynamic(() => import("@/components/map/Map"), {
@@ -58,8 +58,23 @@ const US_ZOOM = 3.35;
 const FLY_MS = 2000;
 /** Landing copy clears out well before the camera arrives. */
 const CHROME_OUT_MS = 420;
-/** Panels opening once the camera has settled. */
-const CHROME_IN_MS = 620;
+/** Panels opening. Matches lib/motion's panel timing so this feels like the
+ *  results bar expanding rather than a separate effect. */
+const CHROME_IN_MS = 560;
+/**
+ * The chrome starts arriving BEFORE the camera stops. Running them back to
+ * back left a visible dead beat at the end of the flight — the descent
+ * finished, then nothing happened, then panels appeared. Overlapping removes
+ * the pause without speeding either part up.
+ */
+const RINGS_AT = Math.round(FLY_MS * 0.55);
+const CHROME_AT = Math.round(FLY_MS * 0.72);
+
+/** Continental US, framed by fitBounds so it fits whatever width the map has. */
+const US_BOUNDS: [[number, number], [number, number]] = [
+  [-125.2, 24.4],
+  [-66.6, 49.6],
+];
 
 const CITY_MARKERS: CityMarker[] = CITIES.map((c) => ({
   id: c.id,
@@ -88,6 +103,22 @@ export function SimulatorExperience({
 }: SimulatorExperienceProps) {
   const [phase, setPhase] = useState<Phase>(initialPhase);
   const [launchingCity, setLaunchingCity] = useState<CityEntry | null>(null);
+
+  // Live camera, reported by the map. Lets "Reset view" decide whether the
+  // next press should level a tilted view or zoom back out to the country.
+  const cameraRef = useRef({
+    pitch: 0,
+    bearing: 0,
+    zoom: US_ZOOM,
+    center: US_CENTER,
+  });
+  const timers = useRef<number[]>([]);
+  useEffect(
+    () => () => {
+      timers.current.forEach(window.clearTimeout);
+    },
+    []
+  );
 
   const [cityId, setCityId] = useState<string>(
     initialCity?.id ?? DEFAULT_CITY_ID
@@ -122,10 +153,9 @@ export function SimulatorExperience({
     lat: number;
     lng: number;
   } | null>(initialCity ? initialCity.defaultGroundZero : null);
-  const [flyToTarget, setFlyToTarget] = useState<
-    | { lat: number; lng: number; zoom?: number; pitch?: number; nonce?: number }
-    | undefined
-  >(initialCity ? { ...initialCity.defaultCenter, zoom: 11, nonce: 0 } : undefined);
+  const [flyToTarget, setFlyToTarget] = useState<MapProps["flyTo"]>(
+    initialCity ? { ...initialCity.defaultCenter, zoom: 11, nonce: 0 } : undefined
+  );
 
   const activeYieldKt = useCustomYield ? customYieldKt : preset.yieldKt;
 
@@ -157,17 +187,31 @@ export function SimulatorExperience({
         setFlyToTarget({
           ...city.defaultCenter,
           zoom: 11,
+          // The only fly with a fixed duration: the chrome timings below are
+          // scheduled against it.
+          duration: FLY_MS,
           nonce: Date.now(),
         });
 
-        window.setTimeout(() => {
-          setGroundZero(city.defaultGroundZero);
-          setPhase("simulator");
-          // The URL should describe what is on screen, but a router push would
-          // remount this tree and undo the whole point. replaceState updates
-          // the address bar without touching React.
-          window.history.replaceState(null, "", `/simulator?city=${city.id}`);
-        }, FLY_MS);
+        // Rings land first, mid-descent, so the expensive casualty pass runs
+        // while the camera is still moving and its cost is hidden.
+        timers.current.push(
+          window.setTimeout(
+            () => setGroundZero(city.defaultGroundZero),
+            RINGS_AT
+          ),
+          window.setTimeout(() => {
+            setPhase("simulator");
+            // The URL should describe what is on screen, but a router push
+            // would remount this tree and undo the whole point. replaceState
+            // updates the address bar without touching React.
+            window.history.replaceState(
+              null,
+              "",
+              `/simulator?city=${city.id}`
+            );
+          }, CHROME_AT)
+        );
 
         return "flying";
       });
@@ -212,6 +256,58 @@ export function SimulatorExperience({
     [phase]
   );
 
+  /** Frame the whole country. Bounds, not a fixed zoom, so it still fits once
+   *  the sidebar has taken 18rem off the map's width. */
+  const showCountry = useCallback(() => {
+    setGroundZero(null);
+    setLaunchingCity(null);
+    setFlyToTarget({
+      ...US_CENTER,
+      bounds: US_BOUNDS,
+      pitch: 0,
+      bearing: 0,
+      nonce: Date.now(),
+    });
+  }, []);
+
+  /**
+   * Two-stage, because a tilted 3D view has two things wrong with it and
+   * fixing both at once loses the user. First press levels the camera in
+   * place — same city, north up, flat. Only once it is already level does a
+   * second press pull back to the country.
+   */
+  const handleResetView = useCallback(() => {
+    const { pitch, bearing, zoom, center } = cameraRef.current;
+    const tilted = pitch > 1 || Math.abs(bearing) > 1;
+    if (tilted) {
+      setFlyToTarget({
+        ...center,
+        zoom,
+        pitch: 0,
+        bearing: 0,
+        duration: 900,
+        nonce: Date.now(),
+      });
+      return;
+    }
+    showCountry();
+  }, [showCountry]);
+
+  const handleGoHome = useCallback(() => {
+    timers.current.forEach(window.clearTimeout);
+    timers.current = [];
+    setGroundZero(null);
+    setLaunchingCity(null);
+    setPhase("landing");
+    window.history.replaceState(null, "", "/");
+    // Frame the country only AFTER the sidebar has finished closing. Fitting
+    // while it is still open fits to the narrow map, and the view then reads
+    // far too wide once the map expands back to full width.
+    timers.current.push(
+      window.setTimeout(showCountry, CHROME_IN_MS + 80)
+    );
+  }, [showCountry]);
+
   const handleCityIdChange = useCallback((id: string) => {
     const c = findCity(id);
     if (!c) return;
@@ -252,8 +348,13 @@ export function SimulatorExperience({
     >
       {/* Header — collapsed to nothing during landing so the map is full-bleed.
           grid 0fr→1fr animates to auto height, matching ResultsPanel/Legend. */}
+      {/* inert while collapsed: the grid 0fr trick keeps this in the DOM so it
+          can animate, which would otherwise leave a zero-height header full of
+          keyboard-focusable controls sitting on top of the landing view. */}
       <div
         className="grid flex-shrink-0"
+        inert={!showChrome}
+        aria-hidden={!showChrome}
         style={{
           gridTemplateRows: showChrome ? "1fr" : "0fr",
           opacity: showChrome ? 1 : 0,
@@ -272,22 +373,18 @@ export function SimulatorExperience({
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => {
-                  setGroundZero(null);
-                  setLaunchingCity(null);
-                  setFlyToTarget({
-                    ...US_CENTER,
-                    zoom: US_ZOOM,
-                    pitch: 0,
-                    nonce: Date.now(),
-                  });
-                  setPhase("landing");
-                  window.history.replaceState(null, "", "/");
-                }}
+                onClick={handleResetView}
                 className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                title="Return to the country view and clear ground zero"
+                title="Level a tilted view; press again for the whole country"
               >
                 Reset view
+              </button>
+              <button
+                onClick={handleGoHome}
+                className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                title="Back to the landing view"
+              >
+                Home
               </button>
               <ThemeToggle />
               <Link
@@ -313,6 +410,7 @@ export function SimulatorExperience({
             opacity: showChrome ? 1 : 0,
             transition: `width ${CHROME_IN_MS}ms ${EASE}, opacity ${CHROME_IN_MS}ms ${EASE}`,
           }}
+          inert={!showChrome}
           aria-hidden={!showChrome}
         >
           <InputsPanel
@@ -353,6 +451,13 @@ export function SimulatorExperience({
               onMapClick={handleGroundZeroMove}
               onGroundZeroDrag={handleGroundZeroMove}
               onCitySelect={handleCitySelect}
+              // Derived, not state: it only has to CHANGE when the chrome
+              // opens or closes. Never 0, so closing is tracked too.
+              resizeTicker={showChrome ? 2 : 1}
+              liveResizeMs={CHROME_IN_MS + 120}
+              onViewStateChange={(v) => {
+                cameraRef.current = v;
+              }}
             />
 
             <LandingOverlay phase={phase} launchingCity={launchingCity} />
@@ -360,6 +465,8 @@ export function SimulatorExperience({
 
           <div
             className="grid flex-shrink-0"
+            inert={!showChrome}
+            aria-hidden={!showChrome}
             style={{
               gridTemplateRows: showChrome ? "1fr" : "0fr",
               opacity: showChrome ? 1 : 0,
@@ -401,6 +508,7 @@ function LandingOverlay({
         opacity: visible ? 1 : 0,
         transition: `opacity ${CHROME_OUT_MS}ms ease-out`,
       }}
+      inert={!visible}
       aria-hidden={!visible}
     >
       <div
@@ -413,7 +521,7 @@ function LandingOverlay({
       />
 
       <div className="absolute inset-0 flex flex-col justify-between">
-        <header className="pointer-events-auto flex items-start justify-between px-7 pt-6">
+        <header className="pointer-events-none flex items-start justify-between px-7 pt-6">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brand-accent">
               MIT Laboratory for Nuclear Science
@@ -428,14 +536,16 @@ function LandingOverlay({
               detonation of any yield, drawn over real population data.
             </p>
           </div>
-          <ThemeToggle />
+          <div className="pointer-events-auto">
+            <ThemeToggle />
+          </div>
         </header>
 
         <p className="pointer-events-none self-center font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-400">
           {launchingCity ? launchingCity.name : "Select a city"}
         </p>
 
-        <footer className="pointer-events-auto border-t border-slate-200/70 bg-white/70 px-7 py-4 backdrop-blur-sm dark:border-zinc-800/70 dark:bg-zinc-950/60">
+        <footer className="pointer-events-none border-t border-slate-200/70 bg-white/70 px-7 py-4 backdrop-blur-sm dark:border-zinc-800/70 dark:bg-zinc-950/60">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <dl className="flex flex-wrap gap-x-10 gap-y-3">
               {RAIL.map((item) => (
@@ -451,7 +561,7 @@ function LandingOverlay({
             </dl>
             <Link
               href="/about"
-              className="font-mono text-[10px] uppercase tracking-[0.22em] text-brand-accent underline-offset-4 hover:underline"
+              className="pointer-events-auto font-mono text-[10px] uppercase tracking-[0.22em] text-brand-accent underline-offset-4 hover:underline"
             >
               About the model
             </Link>

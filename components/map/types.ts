@@ -40,7 +40,38 @@ export interface MapProps {
    *  Optional zoom overrides the default city zoom (12).
    *  Optional nonce (e.g. Date.now()) forces the effect to re-fire even when
    *  lat/lng/zoom are identical to the previous flyTo (e.g. repeated reset). */
-  flyTo?: { lat: number; lng: number; zoom?: number; pitch?: number; nonce?: number };
+  /** When this changes (by reference or coords), the map flies to it.
+   *  `bounds` wins over lat/lng/zoom and does a fitBounds instead, which is
+   *  what "show the whole US" needs — a fixed zoom frames a different area
+   *  once the sidebar narrows the map.
+   *  Omit `duration` to let Mapbox derive it from distance, so a cross-country
+   *  hop takes longer than a neighbouring one instead of racing. */
+  flyTo?: {
+    lat: number;
+    lng: number;
+    zoom?: number;
+    pitch?: number;
+    bearing?: number;
+    duration?: number;
+    bounds?: [[number, number], [number, number]];
+    nonce?: number;
+  };
+  /** Reported on moveend so the parent can offer a two-stage reset (level the
+   *  camera first, then zoom out) without duplicating Mapbox state. */
+  onViewStateChange?: (state: {
+    pitch: number;
+    bearing: number;
+    zoom: number;
+    center: { lat: number; lng: number };
+  }) => void;
+  /** Bump to make the map track a layout animation frame-by-frame for
+   *  `liveResizeMs`. The standing ResizeObserver is debounced, which is right
+   *  for a settled resize but leaves the canvas squashed for the duration of
+   *  an animated one — Mapbox sets the canvas to width:100%, so a container
+   *  that shrinks over 500ms stretches the rendered image the whole way and
+   *  then snaps. */
+  resizeTicker?: number;
+  liveResizeMs?: number;
   /** Called when the user clicks the map. */
   onMapClick: (lat: number, lng: number) => void;
   /** Called when the ground zero marker is dragged to a new position. */

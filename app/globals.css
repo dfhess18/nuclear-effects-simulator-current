@@ -306,6 +306,16 @@ div.map-marker-city {
   cursor: pointer;
 }
 
+/* !important is load-bearing: Mapbox writes `pointer-events: auto` inline on
+   every marker root, and a label anchor floats above its dot. Where two cities
+   sit close together (New York/Philadelphia, the Texas cluster) one city's
+   label anchor covers its neighbour's dot and swallows the hover, so that
+   neighbour never shows its name. Only an !important rule outranks the inline
+   style. The anchor carries no visuals, so it has no reason to take clicks. */
+div.map-marker-label-anchor {
+  pointer-events: none !important;
+}
+
 /* The anchor is the Mapbox marker root — leave its opacity and
    pointer-events alone, Mapbox owns those inline. */
 span.map-marker-label {
