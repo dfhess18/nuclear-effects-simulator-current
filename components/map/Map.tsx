@@ -400,9 +400,14 @@ export default function Map({
       // With no explicit duration Mapbox derives one from the distance, so a
       // coast-to-coast switch takes proportionally longer rather than being
       // crammed into the same window and tearing through tiles.
+      //
+      // Deliberately NO maxDuration. It does not clamp — the implementation is
+      // `duration > maxDuration && (duration = 0)`, so capping it made exactly
+      // the long flights it was meant to shorten snap instantly instead.
+      // Distant switches are simply allowed to take longer.
       ...(flyTo.duration !== undefined
         ? { duration: flyTo.duration }
-        : { speed: 0.9, curve: 1.42, maxDuration: 4200 }),
+        : { speed: 0.9, curve: 1.42 }),
       essential: true,
     });
   }, [

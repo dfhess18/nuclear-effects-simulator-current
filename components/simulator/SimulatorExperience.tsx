@@ -234,7 +234,7 @@ export function SimulatorExperience({
       }
       if (hit) setCityId(hit.id);
       setGroundZero({ lat, lng });
-      setFlyToTarget({ lat, lng });
+      setFlyToTarget({ lat, lng, zoom: 11, nonce: Date.now() });
     },
     [phase, launch]
   );
@@ -313,7 +313,10 @@ export function SimulatorExperience({
     if (!c) return;
     setCityId(id);
     setGroundZero({ ...c.defaultGroundZero });
-    setFlyToTarget({ ...c.defaultCenter });
+    // No duration: Mapbox derives it from the distance, so a coast-to-coast
+    // switch arcs out and back in over longer than a neighbouring hop.
+    // The nonce makes re-picking the same city fly again rather than no-op.
+    setFlyToTarget({ ...c.defaultCenter, zoom: 11, nonce: Date.now() });
   }, []);
 
   const results = useMemo(() => {
