@@ -24,7 +24,11 @@ const CATEGORY_LABELS = {
 import { DUR, EASE } from "@/lib/motion";
 
 export function Legend({ rings }: LegendProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  // Collapsed by default on phones: at 390px the expanded legend covers most
+  // of the map it is annotating. Desktop keeps it open.
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window === "undefined" ? false : window.innerWidth < 640
+  );
 
   const byCategory = rings.reduce<Record<string, EffectRing[]>>(
     (acc, ring) => {
@@ -47,7 +51,7 @@ export function Legend({ rings }: LegendProps) {
     // results panel shrinks the map enough that the list would otherwise
     // overflow past its top edge. flex + min-h-0 lets the row list scroll
     // while the header stays put.
-    <div className="absolute bottom-8 right-2 z-[1000] flex flex-col max-h-[calc(100%-4rem)] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/5 min-w-[220px] max-w-[260px] text-xs overflow-hidden">
+    <div className="absolute bottom-8 right-2 z-[1000] flex max-w-[min(260px,calc(100vw-1rem))] flex-col max-h-[calc(100%-4rem)] max-sm:bottom-2 max-sm:max-h-[45%] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/5 min-w-[min(220px,calc(100vw-1rem))] text-xs overflow-hidden">
       <button
         onClick={() => setCollapsed((c) => !c)}
         className="w-full shrink-0 flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"

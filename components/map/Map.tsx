@@ -41,16 +41,43 @@ function styleLabel(p: StylePreference): string {
   return p === "auto" ? "Auto" : STYLES[p].label;
 }
 
-/** Roomy enough that the whole continental US always fits at MIN_ZOOM, tight
- *  enough that the camera can't wander to another continent. */
+/**
+ * Fence for the camera. Deliberately generous in LATITUDE: on a tall phone,
+ * framing the country's width needs a zoom whose viewport spans far more
+ * latitude than the country itself, and Mapbox refuses any camera that would
+ * leave maxBounds — so a snug box silently clamps the country view on mobile
+ * and shows a slice of the Midwest instead. The longitude limits are what
+ * actually stop the map wandering to another continent.
+ */
 export const US_MAX_BOUNDS: [[number, number], [number, number]] = [
-  [-140, 16],
-  [-56, 56],
+  [-172, -12],
+  [-22, 78],
 ];
-/** Padding used when framing US_BOUNDS, leaving space for the landing rail. */
-const FIT_PADDING = { top: 70, right: 60, bottom: 90, left: 60 };
-/** Stops the user zooming out past the country. */
-const MIN_ZOOM = 2.7;
+/**
+ * Padding used when framing bounds. Scaled to the viewport: the desktop values
+ * leave room for the landing masthead and rail, but the same numbers consume a
+ * third of a 390px phone screen and squeeze the country into a sliver.
+ */
+function fitPadding(width: number, height: number) {
+  const narrow = width < 640;
+  return {
+    top: narrow ? Math.min(120, height * 0.16) : 70,
+    bottom: narrow ? Math.min(150, height * 0.2) : 90,
+    left: narrow ? 20 : 60,
+    right: narrow ? 20 : 60,
+  };
+}
+/**
+ * Stops the user zooming out past the country — but the floor has to depend on
+ * width. Framing 58 degrees of longitude needs roughly zoom 2.2 at 390px and
+ * 2.7 at desktop widths, so a single desktop-calibrated value silently clamps
+ * the country view on a phone and shows a slice of the Midwest instead.
+ */
+function minZoomFor(width: number): number {
+  if (width < 480) return 1.9;
+  if (width < 900) return 2.3;
+  return 2.7;
+}
 
 const SOURCE_ID = "effect-rings";
 const FILL_LAYER = "effect-rings-fill";
@@ -140,6 +167,7 @@ export default function Map({
   rings,
   hobM = 0,
   initialZoom = 12,
+  initialBounds,
   cityMarkers,
   flyTo,
   onMapClick,
@@ -201,6 +229,8 @@ export default function Map({
   // on an in-progress load triggers the "Rebuilding from scratch" warning and
   // can race with the ring data update).
   const styleInitialized = useRef(false);
+  /** Guards the one-shot re-fit after the container settles. */
+  const initialFitDone = useRef(false);
 
   useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { onGroundZeroDragRef.current = onGroundZeroDrag; }, [onGroundZeroDrag]);
@@ -228,7 +258,7 @@ export default function Map({
       maxPitch: 80,
       // The tool only models US cities, so the camera is fenced to them.
       maxBounds: US_MAX_BOUNDS,
-      minZoom: MIN_ZOOM,
+      minZoom: minZoomFor(containerRef.current.clientWidth),
     });
 
     // visualizePitch lets the compass show the current pitch state, so users
@@ -334,6 +364,15 @@ export default function Map({
     });
 
     mapRef.current = map;
+    if (initialBounds) {
+      map.fitBounds(initialBounds, {
+        padding: fitPadding(
+          containerRef.current.clientWidth,
+          containerRef.current.clientHeight
+        ),
+        duration: 0,
+      });
+    }
     // Gives the portal a target; also gates the portal on the map existing.
     setPopupHost(host);
 
@@ -383,7 +422,10 @@ export default function Map({
     // takes 18rem off the map's width.
     if (flyTo.bounds) {
       map.fitBounds(flyTo.bounds, {
-        padding: FIT_PADDING,
+        padding: fitPadding(
+          map.getContainer().clientWidth,
+          map.getContainer().clientHeight
+        ),
         pitch: flyTo.pitch ?? 0,
         bearing: flyTo.bearing ?? 0,
         duration: flyTo.duration ?? 1600,
@@ -633,7 +675,14 @@ export default function Map({
       className="relative w-full h-full bg-[var(--map-bg)]"
       data-map-style={styleId}
     >
-      <div ref={containerRef} className="w-full h-full bg-[var(--map-bg)]" />
+      <div
+        ref={containerRef}
+        // A canvas is opaque to assistive tech. The name says what it is; the
+        // live region in SimulatorExperience reports what it currently shows.
+        role="region"
+        aria-label="Map of the United States showing modelled cities and, once a detonation is placed, its effect rings"
+        className="w-full h-full bg-[var(--map-bg)]"
+      />
 
       {/* Basemap switcher. "Auto" follows the app theme; picking any other
           option pins it. In auto mode the derived option keeps a subdued

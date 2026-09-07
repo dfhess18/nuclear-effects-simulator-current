@@ -31,8 +31,12 @@ export interface MapProps {
   rings: EffectRing[];
   /** Burst height in meters (0 for surface burst). Used to elevate the 3D burst point. */
   hobM?: number;
-  /** Initial zoom level (default 12). */
+  /** Initial zoom level (default 12). Ignored when `initialBounds` is set. */
   initialZoom?: number;
+  /** Frame this region on first paint. Preferred over initialZoom for the
+   *  country view: a zoom that frames the US on a desktop is far too close on
+   *  a phone, where the viewport is a third of the width. */
+  initialBounds?: [[number, number], [number, number]];
   /** City selection markers shown on the map. */
   cityMarkers?: CityMarker[];
   /** When this changes (by reference or coords), the map flies to it. Used

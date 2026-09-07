@@ -103,6 +103,9 @@ export function SimulatorExperience({
 }: SimulatorExperienceProps) {
   const [phase, setPhase] = useState<Phase>(initialPhase);
   const [launchingCity, setLaunchingCity] = useState<CityEntry | null>(null);
+  // Bottom-sheet visibility below lg. Ignored at desktop widths, where the
+  // panel is a permanent column.
+  const [paramsOpen, setParamsOpen] = useState(false);
 
   // Live camera, reported by the map. Lets "Reset view" decide whether the
   // next press should level a tilted view or zoom back out to the country.
@@ -294,6 +297,7 @@ export function SimulatorExperience({
   }, [showCountry]);
 
   const handleGoHome = useCallback(() => {
+    setParamsOpen(false);
     timers.current.forEach(window.clearTimeout);
     timers.current = [];
     setGroundZero(null);
@@ -311,6 +315,9 @@ export function SimulatorExperience({
   const handleCityIdChange = useCallback((id: string) => {
     const c = findCity(id);
     if (!c) return;
+    // On phones the sheet covers the map, so leaving it open would hide the
+    // city the user just asked to see.
+    setParamsOpen(false);
     setCityId(id);
     setGroundZero({ ...c.defaultGroundZero });
     // No duration: Mapbox derives it from the distance, so a coast-to-coast
@@ -365,26 +372,30 @@ export function SimulatorExperience({
         }}
       >
         <div className="overflow-hidden">
-          <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-            <div>
-              <h1 className="text-lg font-semibold text-slate-900 dark:text-zinc-100">
-                Nuclear Effects Simulator
+          <header className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2.5 sm:px-6 sm:py-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold text-slate-900 sm:text-lg dark:text-zinc-100">
+                <span className="sm:hidden">Nuclear Effects</span>
+                <span className="hidden sm:inline">
+                  Nuclear Effects Simulator
+                </span>
               </h1>
-              <p className="text-sm text-slate-500 dark:text-zinc-400">
+              <p className="hidden text-sm text-slate-500 sm:block dark:text-zinc-400">
                 MIT Laboratory for Nuclear Science
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
               <button
                 onClick={handleResetView}
-                className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="rounded-md border border-slate-200 px-2 py-1.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100 sm:px-2.5 sm:text-xs dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                 title="Level a tilted view; press again for the whole country"
               >
-                Reset view
+                <span className="sm:hidden">Reset</span>
+                <span className="hidden sm:inline">Reset view</span>
               </button>
               <button
                 onClick={handleGoHome}
-                className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="rounded-md border border-slate-200 px-2 py-1.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100 sm:px-2.5 sm:text-xs dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                 title="Back to the landing view"
               >
                 Home
@@ -392,7 +403,7 @@ export function SimulatorExperience({
               <ThemeToggle />
               <Link
                 href="/about"
-                className="text-xs text-slate-500 transition-colors hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                className="hidden text-xs text-slate-500 transition-colors hover:text-slate-800 sm:inline dark:text-zinc-400 dark:hover:text-zinc-200"
               >
                 About
               </Link>
@@ -406,16 +417,37 @@ export function SimulatorExperience({
         {/* `flex h-full` so InputsPanel stretches the full column. As a plain
             block wrapper it would size to content, leaving the panel's
             background stopping partway down the page. */}
+        {/* Desktop: a column that pushes the map. Phone: a bottom sheet that
+            slides over it, because an 18rem column leaves nothing for the map
+            on a 390px screen. Sheet visibility is user-controlled via
+            `paramsOpen`, so the map is never permanently half-covered. */}
         <div
-          className="flex h-full flex-shrink-0 overflow-hidden"
+          className={
+            showChrome
+              ? "flex w-full flex-shrink-0 overflow-hidden lg:w-72 max-lg:absolute max-lg:z-[1100] max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[62svh] max-lg:rounded-t-2xl max-lg:border-t max-lg:border-slate-200 max-lg:shadow-2xl lg:h-full max-lg:dark:border-zinc-700"
+              : "flex flex-shrink-0 overflow-hidden lg:h-full"
+          }
           style={{
-            width: showChrome ? "18rem" : "0rem",
+            width: showChrome ? undefined : "0rem",
             opacity: showChrome ? 1 : 0,
-            transition: `width ${CHROME_IN_MS}ms ${EASE}, opacity ${CHROME_IN_MS}ms ${EASE}`,
+            transition: `width ${CHROME_IN_MS}ms ${EASE}, opacity ${CHROME_IN_MS}ms ${EASE}, transform ${CHROME_IN_MS}ms ${EASE}`,
           }}
+          data-sheet-open={paramsOpen ? "true" : "false"}
           inert={!showChrome}
           aria-hidden={!showChrome}
         >
+          <div className="flex w-full flex-col overflow-hidden bg-white lg:contents dark:bg-zinc-900">
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 lg:hidden dark:border-zinc-800 dark:bg-zinc-900">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                Parameters
+              </span>
+              <button
+                onClick={() => setParamsOpen(false)}
+                className="rounded-md px-3 py-1 text-xs font-medium text-brand-accent hover:bg-slate-100 dark:hover:bg-zinc-800"
+              >
+                Done
+              </button>
+            </div>
           <InputsPanel
             preset={preset}
             customYieldKt={customYieldKt}
@@ -437,6 +469,7 @@ export function SimulatorExperience({
             onResetGroundZero={() => setGroundZero(activeCity.defaultGroundZero)}
             onCityChange={handleCityIdChange}
           />
+          </div>
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -446,6 +479,7 @@ export function SimulatorExperience({
               center={US_CENTER}
               bounds={activeCity.bounds}
               initialZoom={US_ZOOM}
+              initialBounds={US_BOUNDS}
               cityMarkers={CITY_MARKERS}
               flyTo={flyToTarget}
               groundZero={groundZero}
@@ -463,7 +497,34 @@ export function SimulatorExperience({
               }}
             />
 
+            {/* Sheet trigger. Only below lg — at desktop widths the panel is
+                a permanent column and this would be redundant. */}
+            {showChrome && !paramsOpen && (
+              <button
+                onClick={() => setParamsOpen(true)}
+                aria-expanded={paramsOpen}
+                // Bottom-left, not centred: the collapsed effects legend is anchored
+                // bottom-right and the two overlap at phone widths.
+                className="absolute bottom-3 left-3 z-40 rounded-full bg-brand px-5 py-2.5 text-xs font-medium text-brand-fg shadow-lg transition-colors hover:bg-brand-hover lg:hidden"
+              >
+                Parameters
+              </button>
+            )}
+
             <LandingOverlay phase={phase} launchingCity={launchingCity} />
+
+            {/* The map is a canvas and reports nothing to assistive tech. This
+                narrates what it currently shows, so a screen-reader user gets
+                the same state change a sighted user sees. */}
+            <p role="status" aria-live="polite" className="sr-only">
+              {phase !== "simulator"
+                ? `Country view. ${CITIES.length} cities available to model.`
+                : groundZero && results
+                  ? `${activeCity.name}. ${results.rings.length} effect rings drawn. ` +
+                    `Estimated ${results.casualties.fatalities.toLocaleString()} fatalities ` +
+                    `and ${results.casualties.affectedAreaKm2.toLocaleString()} square kilometres affected.`
+                  : `${activeCity.name}. No detonation placed.`}
+            </p>
           </div>
 
           <div
@@ -524,17 +585,17 @@ function LandingOverlay({
       />
 
       <div className="absolute inset-0 flex flex-col justify-between">
-        <header className="pointer-events-none flex items-start justify-between px-7 pt-6">
+        <header className="pointer-events-none flex items-start justify-between gap-3 px-5 pt-5 sm:px-7 sm:pt-6">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brand-accent">
               MIT Laboratory for Nuclear Science
             </p>
-            <h1 className="mt-3 max-w-[15ch] text-[clamp(2.1rem,4.4vw,3.6rem)] font-semibold leading-[0.95] tracking-[-0.03em] text-slate-900 dark:text-zinc-100">
+            <h1 className="mt-2.5 max-w-[15ch] text-[clamp(1.7rem,7vw,3.6rem)] font-semibold leading-[0.98] tracking-[-0.03em] text-slate-900 dark:text-zinc-100 sm:mt-3">
               Nuclear effects,
               <br />
               mapped to scale
             </h1>
-            <p className="mt-4 max-w-[40ch] text-sm leading-relaxed text-slate-600 dark:text-zinc-400">
+            <p className="mt-3 hidden max-w-[40ch] text-sm leading-relaxed text-slate-600 sm:mt-4 sm:block dark:text-zinc-400">
               Overpressure, thermal and prompt-radiation contours for a
               detonation of any yield, drawn over real population data.
             </p>
@@ -544,15 +605,31 @@ function LandingOverlay({
           </div>
         </header>
 
-        <p className="pointer-events-none self-center font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-400">
-          {launchingCity ? launchingCity.name : "Select a city"}
+        <p className="pointer-events-none self-center px-4 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500 sm:text-[11px] dark:text-zinc-400">
+          {launchingCity ? (
+            launchingCity.name
+          ) : (
+            <>
+              {/* Coarse pointers can't hover, so the verb has to change. */}
+              <span className="[@media(pointer:coarse)]:hidden">
+                Select a city
+              </span>
+              <span className="hidden [@media(pointer:coarse)]:inline">
+                Tap a city
+              </span>
+            </>
+          )}
         </p>
 
-        <footer className="pointer-events-none border-t border-slate-200/70 bg-white/70 px-7 py-4 backdrop-blur-sm dark:border-zinc-800/70 dark:bg-zinc-950/60">
+        <footer className="pointer-events-none border-t border-slate-200/70 bg-white/70 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:px-7 sm:py-4 dark:border-zinc-800/70 dark:bg-zinc-950/60">
           <div className="flex flex-wrap items-end justify-between gap-6">
-            <dl className="flex flex-wrap gap-x-10 gap-y-3">
-              {RAIL.map((item) => (
-                <div key={item.k}>
+            <dl className="flex flex-wrap gap-x-6 gap-y-2 sm:gap-x-10 sm:gap-y-3">
+              {RAIL.map((item, i) => (
+                <div
+                  key={item.k}
+                  // The middle fact is the first to go when width is scarce.
+                  className={i === 1 ? "hidden sm:block" : undefined}
+                >
                   <dt className="font-mono text-[9px] uppercase tracking-[0.22em] text-slate-400 dark:text-zinc-500">
                     {item.k}
                   </dt>

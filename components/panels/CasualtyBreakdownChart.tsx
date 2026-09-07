@@ -140,6 +140,31 @@ export function CasualtyBreakdownChart({ casualties }: Props) {
         </BarChart>
       </ChartContainer>
 
+      {/* Text equivalent. The chart is an SVG with no accessible structure, and
+          the dataviz rule is that no value may be reachable by colour alone —
+          this is that fallback, and it also gives the figures to anyone using a
+          screen reader. Visually hidden because the inline legend below already
+          direct-labels every segment for sighted readers. */}
+      <table className="sr-only">
+        <caption>Casualty breakdown by category</caption>
+        <thead>
+          <tr>
+            <th scope="col">Category</th>
+            <th scope="col">People</th>
+            <th scope="col">Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {KEYS.map((key) => (
+            <tr key={key}>
+              <th scope="row">{chartConfig[key].label}</th>
+              <td>{data[0][key].toLocaleString()}</td>
+              <td>{Math.round((data[0][key] / total) * 100)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       {/* Inline legend with shares — recharts' own legend has no room for the
           percentages, which are the point of a proportion chart. */}
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">

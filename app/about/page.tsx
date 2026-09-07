@@ -14,6 +14,7 @@ export default function AboutPage() {
             height="12"
             viewBox="0 0 12 12"
             fill="none"
+            aria-hidden="true"
             className="transition-transform group-hover:-translate-x-0.5"
           >
             <path

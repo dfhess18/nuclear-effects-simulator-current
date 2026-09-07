@@ -414,3 +414,34 @@ div.map-marker-city {
 .dark ::-webkit-scrollbar-thumb:hover {
   background-color: oklch(0.55 0 0 / 80%);
 }
+/* ── Parameters bottom sheet (below lg) ─────────────────────────────────────
+   Below the lg breakpoint the inputs panel stops being a column that pushes
+   the map — an 18rem column leaves almost nothing on a 390px screen — and
+   becomes a sheet that slides up over it. Transform rather than height so it
+   composites on the GPU and never resizes the map mid-animation. */
+@media (max-width: 1023.98px) {
+  [data-sheet-open="false"] {
+    transform: translateY(100%);
+  }
+  [data-sheet-open="true"] {
+    transform: translateY(0);
+  }
+  /* The sheet owns the height budget; the panel inside scrolls within it
+     rather than trying to be full-height and overflowing. */
+  [data-sheet-open] > * {
+    width: 100%;
+    min-height: 0;
+  }
+  [data-sheet-open] [data-slot="scroll-area"] {
+    width: 100%;
+    border-right: 0;
+  }
+}
+
+/* Bottom-anchored chrome clears the home indicator on iOS. Paired with
+   viewportFit:"cover" in app/layout.tsx, without which the inset is 0. */
+@supports (padding: max(0px)) {
+  .safe-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
