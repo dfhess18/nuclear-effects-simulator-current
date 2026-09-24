@@ -22,6 +22,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InputsPanel } from "@/components/panels/InputsPanel";
+import { ParamsSheet } from "@/components/simulator/ParamsSheet";
 import { ResultsPanel } from "@/components/panels/ResultsPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -387,7 +388,7 @@ export function SimulatorExperience({
             <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
               <button
                 onClick={handleResetView}
-                className="rounded-md border border-slate-200 px-2 py-1.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100 sm:px-2.5 sm:text-xs dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="rounded-md border border-slate-200 px-2 py-1.5 text-[0.6875rem] text-slate-600 transition-[background-color,transform] duration-100 hover:bg-slate-100 active:scale-[0.97] active:transition-none sm:px-2.5 sm:text-xs dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                 title="Level a tilted view; press again for the whole country"
               >
                 <span className="sm:hidden">Reset</span>
@@ -395,7 +396,7 @@ export function SimulatorExperience({
               </button>
               <button
                 onClick={handleGoHome}
-                className="rounded-md border border-slate-200 px-2 py-1.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100 sm:px-2.5 sm:text-xs dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="rounded-md border border-slate-200 px-2 py-1.5 text-[0.6875rem] text-slate-600 transition-[background-color,transform] duration-100 hover:bg-slate-100 active:scale-[0.97] active:transition-none sm:px-2.5 sm:text-xs dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                 title="Back to the landing view"
               >
                 Home
@@ -417,37 +418,12 @@ export function SimulatorExperience({
         {/* `flex h-full` so InputsPanel stretches the full column. As a plain
             block wrapper it would size to content, leaving the panel's
             background stopping partway down the page. */}
-        {/* Desktop: a column that pushes the map. Phone: a bottom sheet that
-            slides over it, because an 18rem column leaves nothing for the map
-            on a 390px screen. Sheet visibility is user-controlled via
-            `paramsOpen`, so the map is never permanently half-covered. */}
-        <div
-          className={
-            showChrome
-              ? "flex w-full flex-shrink-0 overflow-hidden lg:w-72 max-lg:absolute max-lg:z-[1100] max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[62svh] max-lg:rounded-t-2xl max-lg:border-t max-lg:border-slate-200 max-lg:shadow-2xl lg:h-full max-lg:dark:border-zinc-700"
-              : "flex flex-shrink-0 overflow-hidden lg:h-full"
-          }
-          style={{
-            width: showChrome ? undefined : "0rem",
-            opacity: showChrome ? 1 : 0,
-            transition: `width ${CHROME_IN_MS}ms ${EASE}, opacity ${CHROME_IN_MS}ms ${EASE}, transform ${CHROME_IN_MS}ms ${EASE}`,
-          }}
-          data-sheet-open={paramsOpen ? "true" : "false"}
-          inert={!showChrome}
-          aria-hidden={!showChrome}
+        <ParamsSheet
+          open={paramsOpen}
+          onOpenChange={setParamsOpen}
+          visible={showChrome}
+          title="Parameters"
         >
-          <div className="flex w-full flex-col overflow-hidden bg-white lg:contents dark:bg-zinc-900">
-            <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 lg:hidden dark:border-zinc-800 dark:bg-zinc-900">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-                Parameters
-              </span>
-              <button
-                onClick={() => setParamsOpen(false)}
-                className="rounded-md px-3 py-1 text-xs font-medium text-brand-accent hover:bg-slate-100 dark:hover:bg-zinc-800"
-              >
-                Done
-              </button>
-            </div>
           <InputsPanel
             preset={preset}
             customYieldKt={customYieldKt}
@@ -469,8 +445,7 @@ export function SimulatorExperience({
             onResetGroundZero={() => setGroundZero(activeCity.defaultGroundZero)}
             onCityChange={handleCityIdChange}
           />
-          </div>
-        </div>
+        </ParamsSheet>
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative flex-1">
@@ -505,7 +480,7 @@ export function SimulatorExperience({
                 aria-expanded={paramsOpen}
                 // Bottom-left, not centred: the collapsed effects legend is anchored
                 // bottom-right and the two overlap at phone widths.
-                className="absolute bottom-3 left-3 z-40 rounded-full bg-brand px-5 py-2.5 text-xs font-medium text-brand-fg shadow-lg transition-colors hover:bg-brand-hover lg:hidden"
+                className="absolute bottom-3 left-3 z-40 rounded-full bg-brand px-5 py-2.5 text-xs font-medium text-brand-fg shadow-lg transition-[background-color,transform] duration-100 hover:bg-brand-hover active:scale-[0.97] active:transition-none lg:hidden"
               >
                 Parameters
               </button>
@@ -587,7 +562,7 @@ function LandingOverlay({
       <div className="absolute inset-0 flex flex-col justify-between">
         <header className="pointer-events-none flex items-start justify-between gap-3 px-5 pt-5 sm:px-7 sm:pt-6">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brand-accent">
+            <p className="font-mono text-[0.625rem] uppercase tracking-[0.28em] text-brand-accent">
               MIT Laboratory for Nuclear Science
             </p>
             <h1 className="mt-2.5 max-w-[15ch] text-[clamp(1.7rem,7vw,3.6rem)] font-semibold leading-[0.98] tracking-[-0.03em] text-slate-900 dark:text-zinc-100 sm:mt-3">
@@ -605,7 +580,7 @@ function LandingOverlay({
           </div>
         </header>
 
-        <p className="pointer-events-none self-center px-4 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500 sm:text-[11px] dark:text-zinc-400">
+        <p className="pointer-events-none self-center px-4 text-center font-mono text-[0.625rem] uppercase tracking-[0.22em] text-slate-500 sm:text-[0.6875rem] dark:text-zinc-400">
           {launchingCity ? (
             launchingCity.name
           ) : (
@@ -621,7 +596,7 @@ function LandingOverlay({
           )}
         </p>
 
-        <footer className="pointer-events-none border-t border-slate-200/70 bg-white/70 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:px-7 sm:py-4 dark:border-zinc-800/70 dark:bg-zinc-950/60">
+        <footer className="pointer-events-none glass glass-lg border-t border-slate-200/70 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:px-7 sm:py-4 dark:border-zinc-800/70">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <dl className="flex flex-wrap gap-x-6 gap-y-2 sm:gap-x-10 sm:gap-y-3">
               {RAIL.map((item, i) => (
@@ -630,10 +605,10 @@ function LandingOverlay({
                   // The middle fact is the first to go when width is scarce.
                   className={i === 1 ? "hidden sm:block" : undefined}
                 >
-                  <dt className="font-mono text-[9px] uppercase tracking-[0.22em] text-slate-400 dark:text-zinc-500">
+                  <dt className="font-mono text-[0.5625rem] uppercase tracking-[0.22em] text-slate-400 dark:text-zinc-500">
                     {item.k}
                   </dt>
-                  <dd className="mt-1 text-[13px] tabular-nums text-slate-800 dark:text-zinc-200">
+                  <dd className="mt-1 text-[0.8125rem] tabular-nums text-slate-800 dark:text-zinc-200">
                     {item.v}
                   </dd>
                 </div>
@@ -641,7 +616,7 @@ function LandingOverlay({
             </dl>
             <Link
               href="/about"
-              className="pointer-events-auto font-mono text-[10px] uppercase tracking-[0.22em] text-brand-accent underline-offset-4 hover:underline"
+              className="pointer-events-auto font-mono text-[0.625rem] uppercase tracking-[0.22em] text-brand-accent underline-offset-4 hover:underline"
             >
               About the model
             </Link>

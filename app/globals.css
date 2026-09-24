@@ -172,26 +172,83 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Belt and braces: kill the theme cross-fade, the label fades, and the
-     panel/legend height animations for anyone who's asked for less motion. */
-  .theme-ready body,
-  .theme-ready aside,
-  .theme-ready header,
-  .theme-ready footer,
-  .theme-ready [data-slot="card"],
-  .theme-ready [data-slot="alert"],
-  .theme-ready [data-slot="tabs-list"],
-  span.map-marker-label {
-    transition: none !important;
-  }
+  /*
+   * Reduced motion means a gentler, non-vestibular equivalent — NOT the
+   * absence of feedback. A blanket `transition-duration: 0.01ms` on * also
+   * kills the colour and opacity changes that tell you a control responded,
+   * which makes the interface feel broken rather than calm.
+   *
+   * So: kill the things that MOVE (transform, translation, spring-like
+   * settle) and keep the things that merely CHANGE STATE (colour, opacity).
+   */
   *,
   *::before,
   *::after {
+    /* Vestibular triggers only. */
+    transition-property: opacity, background-color, border-color, color,
+      box-shadow, fill, stroke !important;
+    transition-duration: 150ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* Panels and sheets cross-fade in place instead of sliding. */
+  [data-sheet-open] {
+    transform: none !important;
+  }
+  [data-sheet-open="false"] {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  /* The press scale is a movement; the colour change still confirms the tap. */
+  .active\:scale-\[0\.97\]:active {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  /* Frost the glass into a solid surface. Translucency is decoration here;
+     the hierarchy it encodes is carried by the border and shadow too. */
+  .glass,
+  .ring-popup .mapboxgl-popup-content {
+    backdrop-filter: none !important;
+    background: var(--popover) !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  /* Near-solid backgrounds with a defined, contrasting border. */
+  .glass,
+  .ring-popup .mapboxgl-popup-content {
+    backdrop-filter: none !important;
+    background: var(--background) !important;
+    border-color: var(--foreground) !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ── Translucent material ───────────────────────────────────────────────────
+   One class so every floating surface reads as the same material. The old
+   inline values sat at 95% opacity, which meant the blur behind them did
+   essentially nothing — the surfaces looked flat-tinted rather than like
+   glass with content moving under it.
+
+   `--glass-blur` scales with the surface: bigger surfaces should read as
+   thicker material, per Apple's hierarchy rule. */
+.glass {
+  background: color-mix(in srgb, var(--popover) 72%, transparent);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(180%);
+}
+.glass-lg {
+  --glass-blur: 28px;
+}
+/* A bright top edge reads as light catching the leading surface of the
+   material, which is what separates glass from a tinted panel. */
+.glass-edge {
+  box-shadow: inset 0 1px 0 0 color-mix(in srgb, white 35%, transparent);
 }
 
 /* Basemap backdrop, keyed off data-map-style on the map wrapper. Painted
@@ -420,14 +477,9 @@ div.map-marker-city {
    becomes a sheet that slides up over it. Transform rather than height so it
    composites on the GPU and never resizes the map mid-animation. */
 @media (max-width: 1023.98px) {
-  [data-sheet-open="false"] {
-    transform: translateY(100%);
-  }
-  [data-sheet-open="true"] {
-    transform: translateY(0);
-  }
-  /* The sheet owns the height budget; the panel inside scrolls within it
-     rather than trying to be full-height and overflowing. */
+  /* The sheet's translateY is owned by the spring in ParamsSheet — a CSS
+     transform here would fight it and break interruption mid-drag. Only the
+     inner sizing lives in CSS now. */
   [data-sheet-open] > * {
     width: 100%;
     min-height: 0;

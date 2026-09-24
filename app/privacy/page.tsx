@@ -32,7 +32,7 @@ export default function PrivacyPage() {
   return (
     <PageShell eyebrow="Privacy">
       <Prose>
-        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brand-accent">
+        <p className="font-mono text-[0.625rem] uppercase tracking-[0.28em] text-brand-accent">
           Privacy
         </p>
         <h1 className="mb-6 mt-3 text-[clamp(1.8rem,4vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.03em]">

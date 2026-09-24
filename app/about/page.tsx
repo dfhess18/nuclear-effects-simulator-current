@@ -163,7 +163,7 @@ export default function AboutPage() {
           </Link>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-600 leading-relaxed mt-10 max-w-2xl mx-auto">
+        <p className="text-[0.6875rem] text-slate-400 dark:text-zinc-600 leading-relaxed mt-10 max-w-2xl mx-auto">
           This tool is intended for educational and policy-analysis purposes only.
           Casualty estimates are rough approximations using simplified population
           density models and do not account for evacuation, sheltering, building
@@ -186,7 +186,7 @@ function Stat({ value, label }: { value: string; label: string }) {
       <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-brand-accent">
         {value}
       </div>
-      <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-zinc-500 mt-1">
+      <div className="text-[0.6875rem] uppercase tracking-widest text-slate-500 dark:text-zinc-500 mt-1">
         {label}
       </div>
     </div>
@@ -196,7 +196,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 function FeatureCard({ title, body }: { title: string; body: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-6 shadow-sm hover:border-brand-accent/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-      <div className="text-[11px] font-semibold uppercase tracking-widest mb-2 text-brand-accent">
+      <div className="text-[0.6875rem] font-semibold uppercase tracking-widest mb-2 text-brand-accent">
         {title}
       </div>
       <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -226,7 +226,7 @@ function WeaponCard({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-4 text-center hover:border-brand-accent/30 transition-colors">
-      <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">
+      <div className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">
         {era}
       </div>
       <div className="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1">

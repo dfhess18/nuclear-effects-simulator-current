@@ -83,7 +83,7 @@ export function StorageNotice() {
       aria-label="Data storage notice"
       className="fixed inset-x-0 bottom-0 z-[2000] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
     >
-      <div className="mx-auto flex max-w-3xl flex-col gap-3 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-5 dark:border-zinc-700 dark:bg-zinc-900/95 dark:ring-white/5">
+      <div className="mx-auto flex max-w-3xl flex-col gap-3 glass glass-lg glass-edge rounded-xl border border-slate-200 p-4 shadow-xl ring-1 ring-black/5 sm:flex-row sm:items-center sm:gap-5 dark:border-zinc-700 dark:ring-white/5">
         <p className="flex-1 text-xs leading-relaxed text-slate-600 dark:text-zinc-400">
           This site stores three preferences in your browser — your theme,
           basemap, and this notice. There is no tracking or advertising, and
@@ -98,7 +98,7 @@ export function StorageNotice() {
         </p>
         <button
           onClick={dismiss}
-          className="shrink-0 rounded-full bg-brand px-5 py-2 text-xs font-medium text-brand-fg transition-colors hover:bg-brand-hover"
+          className="shrink-0 rounded-full bg-brand px-5 py-2 text-xs font-medium text-brand-fg transition-[background-color,transform] duration-100 hover:bg-brand-hover active:scale-[0.97] active:transition-none"
         >
           Got it
         </button>

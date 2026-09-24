@@ -22,7 +22,7 @@ export function RingPopup({ ring }: { ring: RingPopupData }) {
           style={{ backgroundColor: ring.color }}
           aria-hidden="true"
         />
-        <p className="text-[13px] font-semibold text-popover-foreground">
+        <p className="text-[0.8125rem] font-semibold text-popover-foreground">
           {ring.thresholdLabel}
         </p>
       </div>
@@ -31,7 +31,7 @@ export function RingPopup({ ring }: { ring: RingPopupData }) {
         {ring.physicalDescription}
       </p>
 
-      <dl className="mt-2.5 space-y-1 border-t border-border pt-2 text-[11px]">
+      <dl className="mt-2.5 space-y-1 border-t border-border pt-2 text-[0.6875rem]">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-muted-foreground">Ground radius</dt>
           <dd className="font-medium tabular-nums text-popover-foreground">

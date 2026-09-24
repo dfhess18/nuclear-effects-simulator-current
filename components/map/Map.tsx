@@ -699,7 +699,7 @@ export default function Map({
             <button
               key={s}
               onClick={() => setStylePref(s)}
-              className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              className={`px-2.5 py-1 text-[0.6875rem] font-medium transition-colors ${
                 active
                   ? "bg-slate-800 text-white dark:bg-zinc-100 dark:text-zinc-900"
                   : derived

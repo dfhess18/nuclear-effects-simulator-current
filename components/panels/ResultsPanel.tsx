@@ -111,7 +111,7 @@ export function ResultsPanel({
         </span>
         <Badge
           variant="outline"
-          className="text-[10px] font-normal text-slate-500 dark:text-zinc-400 px-1.5 py-0"
+          className="text-[0.625rem] font-normal text-slate-500 dark:text-zinc-400 px-1.5 py-0"
         >
           {yieldKt >= 1000 ? `${yieldKt / 1000} Mt` : `${yieldKt} kt`}
         </Badge>
@@ -174,7 +174,7 @@ export function ResultsPanel({
                 <TooltipTrigger
                   render={<span />}
                   tabIndex={0}
-                  className="w-fit text-[11px] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide leading-tight cursor-help decoration-dotted decoration-slate-300 dark:decoration-zinc-600 underline underline-offset-2 outline-none rounded focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-zinc-500"
+                  className="w-fit text-[0.6875rem] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide leading-tight cursor-help decoration-dotted decoration-slate-300 dark:decoration-zinc-600 underline underline-offset-2 outline-none rounded focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-zinc-500"
                 >
                   {s.label}
                 </TooltipTrigger>
@@ -231,7 +231,7 @@ export function ResultsPanel({
           >
             <Separator className="mb-3" />
 
-            <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide mb-2">
+            <p className="text-[0.6875rem] font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wide mb-2">
               Casualty breakdown
             </p>
             {casualties ? (

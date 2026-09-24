@@ -30,7 +30,7 @@ export default function GlobalRouteError({
   return (
     <PageShell eyebrow="Error">
       <div className="mx-auto max-w-3xl px-6 py-16 sm:py-24">
-        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brand-accent">
+        <p className="font-mono text-[0.625rem] uppercase tracking-[0.28em] text-brand-accent">
           Something broke
         </p>
         <h1 className="mt-4 text-[clamp(1.9rem,5vw,3rem)] font-semibold leading-[1.02] tracking-[-0.03em]">

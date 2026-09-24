@@ -51,13 +51,13 @@ export function Legend({ rings }: LegendProps) {
     // results panel shrinks the map enough that the list would otherwise
     // overflow past its top edge. flex + min-h-0 lets the row list scroll
     // while the header stays put.
-    <div className="absolute bottom-8 right-2 z-[1000] flex max-w-[min(260px,calc(100vw-1rem))] flex-col max-h-[calc(100%-4rem)] max-sm:bottom-2 max-sm:max-h-[45%] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/5 min-w-[min(220px,calc(100vw-1rem))] text-xs overflow-hidden">
+    <div className="absolute bottom-8 right-2 z-[1000] flex max-w-[min(260px,calc(100vw-1rem))] flex-col max-h-[calc(100%-4rem)] max-sm:bottom-2 max-sm:max-h-[45%] glass glass-edge border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/5 min-w-[min(220px,calc(100vw-1rem))] text-xs overflow-hidden">
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="w-full shrink-0 flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+        className="w-full shrink-0 flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-[background-color] duration-100 active:bg-slate-100 dark:active:bg-zinc-700"
         aria-expanded={!collapsed}
       >
-        <span className="font-semibold text-slate-800 dark:text-zinc-200 text-[11px] uppercase tracking-wide">
+        <span className="font-semibold text-slate-800 dark:text-zinc-200 text-[0.6875rem] uppercase tracking-wide">
           Effects legend
         </span>
         <svg
@@ -117,7 +117,7 @@ export function Legend({ rings }: LegendProps) {
                           <span className="text-slate-700 dark:text-zinc-300 truncate">
                             {ring.thresholdLabel}
                           </span>
-                          <span className="ml-auto text-[10px] tabular-nums text-slate-400 dark:text-zinc-500 flex-shrink-0">
+                          <span className="ml-auto text-[0.625rem] tabular-nums text-slate-400 dark:text-zinc-500 flex-shrink-0">
                             {ratePct(ring.casualtyRateInner)}
                           </span>
                         </div>

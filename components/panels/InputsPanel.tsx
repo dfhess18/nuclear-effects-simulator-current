@@ -259,7 +259,7 @@ export function InputsPanel({
                       aria-label="Custom yield in kilotons"
                       className="h-7 w-[5.5rem] pr-7 text-sm tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
-                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 dark:text-zinc-500">
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.6875rem] text-slate-400 dark:text-zinc-500">
                       kt
                     </span>
                   </div>

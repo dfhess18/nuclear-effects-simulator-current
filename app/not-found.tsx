@@ -12,7 +12,7 @@ export default function NotFound() {
   return (
     <PageShell eyebrow="Not found">
       <div className="mx-auto max-w-3xl px-6 py-16 sm:py-24">
-        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brand-accent">
+        <p className="font-mono text-[0.625rem] uppercase tracking-[0.28em] text-brand-accent">
           Error 404
         </p>
         <h1 className="mt-4 text-[clamp(1.9rem,5vw,3rem)] font-semibold leading-[1.02] tracking-[-0.03em]">
@@ -41,7 +41,7 @@ export default function NotFound() {
         </div>
 
         <div className="mt-12 border-t border-slate-200 pt-6 dark:border-zinc-800">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-slate-400 dark:text-zinc-500">
+          <p className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-slate-400 dark:text-zinc-500">
             Cities modelled
           </p>
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">

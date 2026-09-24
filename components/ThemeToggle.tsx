@@ -16,7 +16,7 @@ export function ThemeToggle() {
       suppressHydrationWarning
       // min-w keeps the header from reflowing when the label swaps in
       // post-hydration.
-      className="group inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors px-2 py-1 rounded-md border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 min-w-[104px]"
+      className="group inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-[color,background-color,transform] duration-100 active:scale-[0.97] active:transition-none px-2 py-1 rounded-md border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 min-w-[104px]"
       aria-label={
         hydrated
           ? dark
